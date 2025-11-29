@@ -293,7 +293,7 @@ export function OperationDetail({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-3 py-3 border-b border-[#2d2d4a]">
+      <div className="px-3 py-3 border-b border-leo-border">
         <div className="flex items-center gap-2">
           <span
             className={`px-2 py-0.5 text-xs rounded font-medium ${
@@ -320,9 +320,9 @@ export function OperationDetail({
       {/* Two-panel layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Query/Variables/Cache */}
-        <div className="w-1/2 flex flex-col border-r border-[#2d2d4a]">
+        <div className="w-1/2 flex flex-col border-r border-leo-border">
           {/* Left Tabs */}
-          <div className="flex border-b border-[#2d2d4a]">
+          <div className="flex border-b border-leo-border">
             {leftTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -361,7 +361,7 @@ export function OperationDetail({
                       <h3 className="text-xs font-medium text-gray-400 mb-2">
                         Headers
                       </h3>
-                      <div className="bg-[#2d2d4a] rounded p-3">
+                      <div className="bg-leo-elevated rounded p-3">
                         <HeadersTable headers={operation.request.headers} />
                       </div>
                     </div>
@@ -391,7 +391,7 @@ export function OperationDetail({
                             return <EditableJsonTree data={parsed} readOnly collapsed={jsonCollapsed} />;
                           } catch {
                             return (
-                              <div className="bg-[#2d2d4a] rounded p-3">
+                              <div className="bg-leo-elevated rounded p-3">
                                 <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap break-all">
                                   {operation.request.body}
                                 </pre>
@@ -400,7 +400,7 @@ export function OperationDetail({
                           }
                         })()
                       ) : (
-                        <div className="bg-[#2d2d4a] rounded p-3">
+                        <div className="bg-leo-elevated rounded p-3">
                           <span className="text-gray-500 text-xs">No body</span>
                         </div>
                       )}
@@ -447,7 +447,7 @@ export function OperationDetail({
                 {operation.options ? (
                   <>
                     {/* fetchPolicy */}
-                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
                       <span className="text-gray-400">fetchPolicy</span>
                       <span className="text-purple-400 ">
                         {operation.options.fetchPolicy
@@ -457,7 +457,7 @@ export function OperationDetail({
                     </div>
 
                     {/* errorPolicy */}
-                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
                       <span className="text-gray-400">errorPolicy</span>
                       <span className="text-purple-400">
                         {operation.options.errorPolicy
@@ -467,7 +467,7 @@ export function OperationDetail({
                     </div>
 
                     {/* notifyOnNetworkStatusChange */}
-                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
                       <span className="text-gray-400">
                         notifyOnNetworkStatusChange
                       </span>
@@ -485,7 +485,7 @@ export function OperationDetail({
                     </div>
 
                     {/* returnPartialData */}
-                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
                       <span className="text-gray-400">returnPartialData</span>
                       <span
                         className={`${
@@ -499,7 +499,7 @@ export function OperationDetail({
                     </div>
 
                     {/* partialRefetch */}
-                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
                       <span className="text-gray-400">partialRefetch</span>
                       <span
                         className={`${
@@ -514,7 +514,7 @@ export function OperationDetail({
 
                     {/* canonizeResults */}
                     {operation.options.canonizeResults !== null && (
-                      <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                      <div className="flex items-center justify-between py-2 border-b border-leo-border">
                         <span className="text-gray-400">canonizeResults</span>
                         <span
                           className={`${
@@ -545,7 +545,7 @@ export function OperationDetail({
         {/* Right Panel - Result/Cache */}
         <div className="w-1/2 flex flex-col">
           {/* Right Tabs */}
-          <div className="flex border-b border-[#2d2d4a]">
+          <div className="flex border-b border-leo-border">
             {rightTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -593,7 +593,7 @@ export function OperationDetail({
                       <h3 className="text-xs font-medium text-gray-400 mb-2">
                         Headers
                       </h3>
-                      <div className="bg-[#2d2d4a] rounded p-3">
+                      <div className="bg-leo-elevated rounded p-3">
                         <HeadersTable headers={operation.response.headers} />
                       </div>
                     </div>
@@ -609,7 +609,7 @@ export function OperationDetail({
                       {displayResult ? (
                         <EditableJsonTree data={displayResult} readOnly collapsed={jsonCollapsed} />
                       ) : (
-                        <div className="bg-[#2d2d4a] rounded p-3">
+                        <div className="bg-leo-elevated rounded p-3">
                           <span className="text-gray-500 text-xs">No body</span>
                         </div>
                       )}
@@ -737,7 +737,7 @@ export function OperationDetail({
                     className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
                       isDragOver
                         ? "border-purple-500 bg-purple-500/20"
-                        : "border-[#3d3d5c] hover:border-purple-500 hover:bg-[#2d2d4a]/50"
+                        : "border-leo-border-strong hover:border-purple-500 hover:bg-leo-active"
                     }`}
                   >
                     <svg
@@ -806,7 +806,7 @@ export function OperationDetail({
                       <div className="flex items-center gap-1">
                         <button
                           onClick={reloadFile}
-                          className="p-1.5 hover:bg-[#2d2d4a] rounded transition-colors"
+                          className="p-1.5 hover:bg-leo-elevated rounded transition-colors"
                           title="Load different file"
                         >
                           <svg
@@ -825,7 +825,7 @@ export function OperationDetail({
                         </button>
                         <button
                           onClick={clearMock}
-                          className="p-1.5 hover:bg-[#2d2d4a] rounded transition-colors"
+                          className="p-1.5 hover:bg-leo-elevated rounded transition-colors"
                           title="Remove mock"
                         >
                           <svg

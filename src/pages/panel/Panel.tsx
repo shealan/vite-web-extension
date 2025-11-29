@@ -23,6 +23,7 @@ interface MockFileInfo {
 
 interface Settings {
   autoExpandJson: boolean;
+  highlightChakra: boolean;
 }
 
 interface PersistedState {
@@ -34,6 +35,7 @@ interface PersistedState {
 
 const defaultSettings: Settings = {
   autoExpandJson: false,
+  highlightChakra: false,
 };
 
 interface ApolloState {
@@ -257,6 +259,185 @@ export default function Panel() {
     });
   }, [mockDataMap, mockFileInfoMap, activeTab, settings, isInitialized]);
 
+  // Chakra highlighter script - defined outside useEffect so it can be reused
+  const injectChakraHighlighter = useCallback((enabled: boolean) => {
+    // Leonardo-branded color palette for Chakra component highlighting
+    // Uses purples, teals, and complementary colors that stand out from the UI
+    const chakraHighlighterScript = `
+      (function() {
+        const HIGHLIGHTER_ATTR = 'data-leo-chakra-highlight';
+        const TOOLTIP_ID = 'leo-chakra-tooltip';
+
+        // Check if already applied
+        if (document.body.getAttribute(HIGHLIGHTER_ATTR) === 'true') {
+          return;
+        }
+
+        // Leonardo-branded colors - distinct but harmonious with the brand
+        const colorMap = {
+          button: '#a855f7',      // Purple 500
+          input: '#6366f1',       // Indigo 500
+          stack: '#14b8a6',       // Teal 500
+          box: '#f97316',         // Orange 500
+          text: '#c084fc',        // Purple 400
+          heading: '#22d3ee',     // Cyan 400
+          flex: '#ec4899',        // Pink 500
+          grid: '#eab308',        // Yellow 500
+          container: '#84cc16',   // Lime 500
+          card: '#f472b6',        // Pink 400
+          modal: '#2dd4bf',       // Teal 400
+          menu: '#fb923c',        // Orange 400
+          select: '#818cf8',      // Indigo 400
+          checkbox: '#e879f9',    // Fuchsia 400
+          radio: '#fbbf24',       // Amber 400
+          switch: '#8b5cf6',      // Violet 500
+          textarea: '#a78bfa',    // Violet 400
+          form: '#4ade80',        // Green 400
+          link: '#f87171',        // Red 400
+          icon: '#d946ef',        // Fuchsia 500
+        };
+
+        // Create tooltip element
+        const tooltip = document.createElement('div');
+        tooltip.id = TOOLTIP_ID;
+        tooltip.style.cssText = 'position: fixed; pointer-events: none; z-index: 999999; padding: 6px 10px; background: rgba(12, 12, 18, 0.95); border: 1px solid #28283a; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; color: #e5e7eb; display: none; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);';
+        document.body.appendChild(tooltip);
+
+        // Create dot element
+        const dot = document.createElement('span');
+        dot.style.cssText = 'width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;';
+        tooltip.appendChild(dot);
+
+        // Create text element
+        const text = document.createElement('span');
+        tooltip.appendChild(text);
+
+        // Track current hovered element
+        let currentEl = null;
+
+        // Mouse move handler to position tooltip
+        function handleMouseMove(e) {
+          if (tooltip.style.display === 'flex') {
+            tooltip.style.left = (e.clientX + 12) + 'px';
+            tooltip.style.top = (e.clientY + 12) + 'px';
+          }
+        }
+
+        // Known Chakra component types (used to filter out hash-based class names)
+        const knownTypes = Object.keys(colorMap);
+
+        // Extract valid Chakra type from element
+        function getChakraType(el) {
+          const classes = [...el.classList];
+          for (const cls of classes) {
+            if (!cls.startsWith('chakra-')) continue;
+            const type = cls.replace('chakra-', '').split('__')[0];
+            // Only return if it's a known type (not a hash like "1q6grw9")
+            if (knownTypes.includes(type)) {
+              return type;
+            }
+          }
+          return null;
+        }
+
+        // Mouse over handler
+        function handleMouseOver(e) {
+          const el = e.target.closest('[class*="chakra-"]');
+          if (!el || el === currentEl) return;
+
+          currentEl = el;
+          const type = getChakraType(el);
+          const color = type ? colorMap[type] : '#9ca3af';
+          const displayName = type ? 'Chakra ' + type.charAt(0).toUpperCase() + type.slice(1) : 'Chakra';
+
+          dot.style.backgroundColor = color;
+          text.textContent = displayName;
+          tooltip.style.display = 'flex';
+          tooltip.style.left = (e.clientX + 12) + 'px';
+          tooltip.style.top = (e.clientY + 12) + 'px';
+        }
+
+        // Mouse out handler
+        function handleMouseOut(e) {
+          const el = e.target.closest('[class*="chakra-"]');
+          if (!el) return;
+
+          // Check if we're moving to another chakra element
+          const relatedTarget = e.relatedTarget;
+          if (relatedTarget && relatedTarget.closest && relatedTarget.closest('[class*="chakra-"]')) {
+            return;
+          }
+
+          currentEl = null;
+          tooltip.style.display = 'none';
+        }
+
+        // Store handlers on window for cleanup
+        window.__leoChakraHandlers = { handleMouseMove, handleMouseOver, handleMouseOut };
+
+        // Add event listeners
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseover', handleMouseOver);
+        document.addEventListener('mouseout', handleMouseOut);
+
+        // Apply outlines to all chakra elements
+        document.querySelectorAll('[class*="chakra-"]').forEach(el => {
+          const type = getChakraType(el);
+          const color = type ? colorMap[type] : '#9ca3af';
+          el.style.outline = '2px solid ' + color;
+          el.style.outlineOffset = '1px';
+        });
+
+        document.body.setAttribute(HIGHLIGHTER_ATTR, 'true');
+      })();
+    `;
+
+    const removeHighlighterScript = `
+      (function() {
+        const HIGHLIGHTER_ATTR = 'data-leo-chakra-highlight';
+        const TOOLTIP_ID = 'leo-chakra-tooltip';
+
+        if (document.body.getAttribute(HIGHLIGHTER_ATTR) !== 'true') {
+          return;
+        }
+
+        // Remove tooltip
+        const tooltip = document.getElementById(TOOLTIP_ID);
+        if (tooltip) {
+          tooltip.remove();
+        }
+
+        // Remove event listeners
+        if (window.__leoChakraHandlers) {
+          document.removeEventListener('mousemove', window.__leoChakraHandlers.handleMouseMove);
+          document.removeEventListener('mouseover', window.__leoChakraHandlers.handleMouseOver);
+          document.removeEventListener('mouseout', window.__leoChakraHandlers.handleMouseOut);
+          delete window.__leoChakraHandlers;
+        }
+
+        // Remove outlines
+        document.querySelectorAll('[class*="chakra-"]').forEach(el => {
+          el.style.outline = '';
+          el.style.outlineOffset = '';
+        });
+
+        document.body.removeAttribute(HIGHLIGHTER_ATTR);
+      })();
+    `;
+
+    if (enabled) {
+      chrome.devtools.inspectedWindow.eval(chakraHighlighterScript);
+    } else {
+      chrome.devtools.inspectedWindow.eval(removeHighlighterScript);
+    }
+  }, []);
+
+  // Apply Chakra highlighter when setting changes
+  useEffect(() => {
+    if (!isInitialized) return;
+    injectChakraHighlighter(settings.highlightChakra);
+  }, [settings.highlightChakra, isInitialized, injectChakraHighlighter]);
+
   // Fetch data via RPC and convert to operations
   const fetchData = useCallback(async () => {
     if (!rpcClientRef.current) return;
@@ -347,10 +528,14 @@ export default function Panel() {
       switch (message.type) {
         case "APOLLO_CLIENT_DETECTED":
           setState((prev) => ({ ...prev, isConnected: true }));
-          // Re-apply mocks when Apollo Client is detected (after page load/refresh)
+          // Re-apply mocks and Chakra highlighter when Apollo Client is detected (after page load/refresh)
           loadPersistedState().then((persisted) => {
             if (persisted?.mockDataMap) {
               reapplyMocks(persisted.mockDataMap);
+            }
+            // Re-inject Chakra highlighter if it was enabled
+            if (persisted?.settings?.highlightChakra) {
+              injectChakraHighlighter(true);
             }
           });
           break;
@@ -386,7 +571,7 @@ export default function Panel() {
       rpcClient.cleanup();
       port.disconnect();
     };
-  }, [startPolling, stopPolling, reapplyMocks]);
+  }, [startPolling, stopPolling, reapplyMocks, injectChakraHighlighter]);
 
   const queries = state.operations.filter((op) => op.type === "query");
   const mutations = state.operations.filter((op) => op.type === "mutation");
@@ -460,9 +645,9 @@ export default function Panel() {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-[#1a1a2e] text-gray-100">
+    <div className="flex flex-col h-screen bg-leo-base text-leo-text">
       {/* Header */}
-      <header className="flex items-center justify-between px-3 py-2 bg-[#16162a] border-b border-[#2d2d4a]">
+      <header className="flex items-center justify-between px-3 py-2 border-b border-leo-border">
         <div className="flex items-center gap-4">
           <h1 className="text-base font-semibold text-white flex items-center gap-2">
             <img src="/icon-128.png" alt="Leonardo.Ai" className="size-6" />
@@ -488,7 +673,7 @@ export default function Panel() {
         <div className="flex items-center gap-1">
           <button
             onClick={clearOperations}
-            className="p-2 hover:bg-[#2d2d4a] rounded transition-colors"
+            className="p-2 hover:bg-leo-active rounded transition-colors"
             title="Clear operations"
           >
             <svg
@@ -507,7 +692,7 @@ export default function Panel() {
           </button>
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 hover:bg-[#2d2d4a] rounded transition-colors"
+            className="p-2 hover:bg-leo-active rounded transition-colors"
             title="Settings"
           >
             <svg
@@ -540,15 +725,15 @@ export default function Panel() {
             className="absolute inset-0 bg-black/50"
             onClick={() => setIsSettingsOpen(false)}
           />
-          <div className="relative bg-[#1a1a2e] border border-[#2d2d4a] rounded-lg shadow-xl w-96 max-w-[90vw]">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-[#2d2d4a]">
+          <div className="relative bg-leo-elevated border border-leo-border-strong rounded-lg shadow-xl w-96 max-w-[90vw]">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-leo-border-strong">
               <h2 className="text-sm font-semibold text-white">Settings</h2>
               <button
                 onClick={() => setIsSettingsOpen(false)}
-                className="p-1 hover:bg-[#2d2d4a] rounded transition-colors"
+                className="p-1 hover:bg-leo-border-strong rounded transition-colors"
               >
                 <svg
-                  className="w-4 h-4 text-gray-400"
+                  className="w-4 h-4 text-gray-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -573,12 +758,38 @@ export default function Panel() {
                     }))
                   }
                   className={`relative w-10 h-5 rounded-full transition-colors ${
-                    settings.autoExpandJson ? "bg-purple-500" : "bg-[#3d3d5c]"
+                    settings.autoExpandJson
+                      ? "bg-leo-purple-600"
+                      : "bg-leo-border-strong"
                   }`}
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
                       settings.autoExpandJson
+                        ? "translate-x-5"
+                        : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </label>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-xs text-gray-300">Highlight Chakra components</span>
+                <button
+                  onClick={() =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      highlightChakra: !prev.highlightChakra,
+                    }))
+                  }
+                  className={`relative w-10 h-5 rounded-full transition-colors ${
+                    settings.highlightChakra
+                      ? "bg-leo-purple-600"
+                      : "bg-leo-border-strong"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                      settings.highlightChakra
                         ? "translate-x-5"
                         : "translate-x-0"
                     }`}
@@ -591,7 +802,7 @@ export default function Panel() {
       )}
 
       {/* Tabs */}
-      <nav className="flex border-b border-[#2d2d4a]">
+      <nav className="flex border-b border-leo-border">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -607,7 +818,7 @@ export default function Panel() {
           >
             {tab.label}
             {tab.count !== undefined && tab.count > 0 && (
-              <span className="ml-2 px-1.5 py-0.5 text-xs bg-[#2d2d4a] rounded-full">
+              <span className="ml-2 px-1.5 py-0.5 text-xs bg-leo-active rounded-full">
                 {tab.count}
               </span>
             )}
@@ -625,7 +836,7 @@ export default function Panel() {
         ) : (
           <>
             {/* Operation List */}
-            <div className="w-80 border-r border-[#2d2d4a] overflow-y-auto">
+            <div className="w-80 border-r border-leo-border overflow-y-auto">
               <OperationList
                 operations={activeTab === "queries" ? queries : mutations}
                 selectedId={selectedOperationId ?? undefined}

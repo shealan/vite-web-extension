@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./theme.css";
 
 @theme {
     --animate-spin-slow: spin 20s linear infinite;
@@ -8,4 +9,35 @@
             transform: rotate(360deg);
         }
     }
+
+    /* Leonardo.Ai custom colors */
+    /* Backgrounds */
+    --color-leo-base: var(--leo-bg-base);
+    --color-leo-elevated: var(--leo-bg-elevated);
+    --color-leo-hover: var(--leo-bg-hover);
+    --color-leo-active: var(--leo-bg-active);
+
+    /* Borders */
+    --color-leo-border: var(--leo-border);
+    --color-leo-border-strong: var(--leo-border-strong);
+    --color-leo-border-hover: var(--leo-border-hover);
+
+    /* Text */
+    --color-leo-text: var(--leo-text-primary);
+    --color-leo-text-secondary: var(--leo-text-secondary);
+    --color-leo-text-muted: var(--leo-text-muted);
+
+    /* Brand purple scale */
+    --color-leo-purple-50: var(--leo-purple-50);
+    --color-leo-purple-100: var(--leo-purple-100);
+    --color-leo-purple-200: var(--leo-purple-200);
+    --color-leo-purple-300: var(--leo-purple-300);
+    --color-leo-purple-400: var(--leo-purple-400);
+    --color-leo-purple-500: var(--leo-purple-500);
+    --color-leo-purple-600: var(--leo-purple-600);
+    --color-leo-purple-700: var(--leo-purple-700);
+
+    /* Indigo accents */
+    --color-leo-indigo-400: var(--leo-indigo-400);
+    --color-leo-indigo-500: var(--leo-indigo-500);
 }

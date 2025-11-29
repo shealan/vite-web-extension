@@ -51,13 +51,13 @@ export function OperationList({
   return (
     <div className="flex flex-col h-full">
       {/* Search */}
-      <div className="p-2 border-b border-[#2d2d4a]">
+      <div className="p-2 border-b border-leo-border">
         <input
           type="text"
           placeholder={`Search ${operationType}...`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-3 py-1.5 text-sm bg-[#2d2d4a] border border-[#3d3d5c] rounded focus:outline-none focus:border-purple-500 text-gray-200 placeholder-gray-500"
+          className="w-full px-3 py-1.5 text-sm bg-leo-elevated border border-leo-border-strong rounded focus:outline-none focus:border-leo-purple-500 text-leo-text placeholder-leo-text-muted"
         />
       </div>
 
@@ -72,13 +72,13 @@ export function OperationList({
             No matching operations
           </div>
         ) : (
-          <div className="divide-y divide-[#2d2d4a]">
+          <div className="divide-y divide-leo-border">
             {filteredOperations.map((operation) => (
               <button
                 key={operation.id}
                 onClick={() => onSelect(operation)}
-                className={`w-full px-3 py-2 text-left hover:bg-[#2d2d4a]/50 transition-colors ${
-                  selectedId === operation.id ? "bg-[#2d2d4a]" : ""
+                className={`w-full px-3 py-2 text-left hover:bg-leo-hover/50 transition-colors ${
+                  selectedId === operation.id ? "bg-leo-hover" : ""
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -114,7 +114,7 @@ export function OperationList({
       </div>
 
       {/* Stats */}
-      <div className="p-2 border-t border-[#2d2d4a] text-xs text-gray-500">
+      <div className="p-2 border-t border-leo-border text-xs text-leo-text-muted">
         {filteredOperations.length} / {operations.length} {operationType}
       </div>
     </div>

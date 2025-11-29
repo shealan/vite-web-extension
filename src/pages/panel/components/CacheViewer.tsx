@@ -40,15 +40,15 @@ export function CacheViewer({ cache }: CacheViewerProps) {
   return (
     <div className="flex h-full w-full">
       {/* Cache Keys List */}
-      <div className="w-80 shrink-0 border-r border-[#2d2d4a] flex flex-col">
+      <div className="w-80 shrink-0 border-r border-leo-border flex flex-col">
         {/* Search */}
-        <div className="p-2 border-b border-[#2d2d4a]">
+        <div className="p-2 border-b border-leo-border">
           <input
             type="text"
             placeholder="Search cache keys..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm bg-[#2d2d4a] border border-[#3d3d5c] rounded focus:outline-none focus:border-purple-500 text-gray-200 placeholder-gray-500"
+            className="w-full px-3 py-1.5 text-sm bg-leo-elevated border border-leo-border-strong rounded focus:outline-none focus:border-leo-purple-500 text-leo-text placeholder-leo-text-muted"
           />
         </div>
 
@@ -59,13 +59,13 @@ export function CacheViewer({ cache }: CacheViewerProps) {
               {searchQuery ? 'No matching keys' : 'Cache is empty'}
             </div>
           ) : (
-            <div className="divide-y divide-[#2d2d4a]">
+            <div className="divide-y divide-leo-border">
               {cacheKeys.map((key) => (
                 <button
                   key={key}
                   onClick={() => setSelectedKey(key)}
-                  className={`w-full px-3 py-2 text-left hover:bg-[#2d2d4a]/50 transition-colors ${
-                    selectedKey === key ? 'bg-[#2d2d4a]' : ''
+                  className={`w-full px-3 py-2 text-left hover:bg-leo-hover/50 transition-colors ${
+                    selectedKey === key ? 'bg-leo-hover' : ''
                   }`}
                 >
                   <span className="text-sm text-gray-200 truncate block font-mono">
@@ -81,7 +81,7 @@ export function CacheViewer({ cache }: CacheViewerProps) {
         </div>
 
         {/* Stats */}
-        <div className="p-2 border-t border-[#2d2d4a] text-xs text-gray-500">
+        <div className="p-2 border-t border-leo-border text-xs text-leo-text-muted">
           {cacheKeys.length} / {Object.keys(cache).length} keys
         </div>
       </div>

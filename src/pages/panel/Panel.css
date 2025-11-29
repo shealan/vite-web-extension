@@ -1,4 +1,6 @@
 /* Leonardo.Ai DevTools Panel Styles */
+@import "../../assets/styles/theme.css";
+
 * {
   box-sizing: border-box;
 }
@@ -6,7 +8,7 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #1a1a2e;
+  background-color: var(--leo-bg-base);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, sans-serif;
 }
@@ -72,16 +74,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a2e;
+  background: var(--leo-bg-base);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3d3d5c;
+  background: var(--leo-border-strong);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4d4d6d;
+  background: var(--leo-border-hover);
 }
 
 /* JavaScript Editor Styles */
@@ -114,17 +116,17 @@ body {
 /* Editable JSON Tree Styles - reduce nesting line opacity */
 .editable-json-tree div[style*="border-left"],
 .editable-json-tree span[style*="border-left"] {
-  border-left-color: rgba(61, 61, 92, 0.5) !important;
+  border-left-color: rgba(40, 40, 58, 0.6) !important;
 }
 
-/* JSON Tree icon colors - grey default, white on hover */
+/* JSON Tree icon colors - grey default, lighter on hover */
 .editable-json-tree svg {
-  fill: #6b7280 !important;
-  stroke: #6b7280 !important;
+  fill: #4a4a4a !important;
+  stroke: #4a4a4a !important;
   transition: fill 0.15s ease, stroke 0.15s ease;
 }
 
 .editable-json-tree svg:hover {
-  fill: #ffffff !important;
-  stroke: #ffffff !important;
+  fill: #888888 !important;
+  stroke: #888888 !important;
 }

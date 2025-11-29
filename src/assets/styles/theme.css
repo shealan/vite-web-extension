@@ -1,0 +1,50 @@
+/* Leonardo.Ai DevTools Theme
+ * Custom color palette with subtle purple undertones
+ * Matching the Leonardo.Ai brand aesthetic
+ */
+
+:root {
+  /* Base backgrounds */
+  --leo-bg-base: #0c0c12;           /* Main background - near black with purple tint */
+  --leo-bg-elevated: #101622;        /* Elevated surfaces - headers, inputs, cards */
+  --leo-bg-hover: #1a1a24;           /* Hover states, selected items */
+  --leo-bg-active: #1e1e28;          /* Active/pressed states */
+
+  /* Borders */
+  --leo-border: #1e1e28;             /* Default borders */
+  --leo-border-strong: #28283a;      /* Stronger borders - inputs, modals */
+  --leo-border-hover: #3a3a50;       /* Border hover state */
+
+  /* Text colors */
+  --leo-text-primary: #e5e7eb;       /* Primary text - gray-200 */
+  --leo-text-secondary: #9ca3af;     /* Secondary text - gray-400 */
+  --leo-text-muted: #6b7280;         /* Muted text - gray-500 */
+
+  /* Brand purple */
+  --leo-purple-50: #faf5ff;
+  --leo-purple-100: #f3e8ff;
+  --leo-purple-200: #e9d5ff;
+  --leo-purple-300: #d8b4fe;
+  --leo-purple-400: #c084fc;
+  --leo-purple-500: #a855f7;
+  --leo-purple-600: #9333ea;
+  --leo-purple-700: #7c3aed;
+
+  /* Indigo accents (keys, links) */
+  --leo-indigo-400: #818cf8;
+  --leo-indigo-500: #6366f1;
+
+  /* Semantic colors */
+  --leo-success: #22c55e;            /* green-500 */
+  --leo-success-muted: #6ee7b7;      /* green-300 for JSON strings */
+  --leo-error: #ef4444;              /* red-500 */
+  --leo-warning: #f97316;            /* orange-500 */
+  --leo-info: #3b82f6;               /* blue-500 */
+
+  /* JSON syntax highlighting */
+  --leo-json-key: #818cf8;           /* Indigo - keys */
+  --leo-json-string: #6ee7b7;        /* Green - strings */
+  --leo-json-number: #d4a574;        /* Amber - numbers */
+  --leo-json-boolean: #c084fc;       /* Purple - booleans */
+  --leo-json-null: #c084fc;          /* Purple - null/undefined */
+}

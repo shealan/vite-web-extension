@@ -8,26 +8,26 @@ interface EditableJsonTreeProps {
   collapsed?: number | boolean;
 }
 
-// Custom theme matching the existing JsonTree color scheme
-// react-json-view maps base16 colors differently than react-json-tree
-// Adjusted to match our original theme visually
+// Custom theme matching Leonardo.Ai design system
+// Values align with CSS variables in theme.css:
+// --leo-bg-elevated, --leo-border-strong, --leo-text-*, --leo-json-*, --leo-purple-*, --leo-indigo-*
 const theme = {
-  base00: "transparent", // background
-  base01: "#2d2d4a", // lighter background
-  base02: "#3d3d5c", // selection background
-  base03: "#9ca3af", // comments, line numbers
-  base04: "#9ca3af", // dark foreground
-  base05: "#e5e7eb", // default text
-  base06: "#f3f4f6", // light foreground
-  base07: "#7dd3fc", // keys (cyan)
-  base08: "#f472b6", // null, NaN, undefined (pink)
-  base09: "#86efac", // strings (green)
-  base0A: "#fbbf24", // symbols, dates
-  base0B: "#fbbf24", // numbers (yellow)
-  base0C: "#7dd3fc", // regex
-  base0D: "#c4b5fd", // functions (purple)
-  base0E: "#f472b6", // booleans (pink)
-  base0F: "#f472b6", // integers (pink)
+  base00: "transparent",  // background
+  base01: "#101622",      // --leo-bg-elevated
+  base02: "#28283a",      // --leo-border-strong
+  base03: "#6b7280",      // --leo-text-muted
+  base04: "#6b7280",      // --leo-text-muted
+  base05: "#9ca3af",      // --leo-text-secondary
+  base06: "#d1d5db",      // light foreground
+  base07: "#818cf8",      // --leo-json-key / --leo-indigo-400
+  base08: "#c084fc",      // --leo-json-null / --leo-purple-400
+  base09: "#6ee7b7",      // --leo-json-string / --leo-success-muted
+  base0A: "#d4a574",      // --leo-json-number
+  base0B: "#d4a574",      // --leo-json-number
+  base0C: "#818cf8",      // --leo-indigo-400
+  base0D: "#a78bfa",      // functions
+  base0E: "#c084fc",      // --leo-json-boolean / --leo-purple-400
+  base0F: "#c084fc",      // --leo-purple-400
 };
 
 export function EditableJsonTree({
