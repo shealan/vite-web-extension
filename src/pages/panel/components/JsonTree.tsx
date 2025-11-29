@@ -89,7 +89,7 @@ function CopyButton({ data }: { data: unknown }) {
 
 export function JsonTree({ data, showCopyButton = false }: JsonTreeProps) {
   return (
-    <div className="w-full block" style={{ width: '100%' }}>
+    <div className="w-full block pr-4" style={{ width: '100%' }}>
       <div className="json-tree-wrapper w-full block" style={{ width: '100%' }}>
         <JSONTree
           data={data}

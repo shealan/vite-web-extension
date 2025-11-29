@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { GraphQLOperation } from "@src/shared/types";
 import { JsonTree, CopyButton } from "./JsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
@@ -8,15 +8,57 @@ interface MockFileInfo {
   fileSize: number;
 }
 
+// Component for rendering headers in a tabular format
+function HeadersTable({ headers }: { headers: Record<string, string> }) {
+  const entries = Object.entries(headers);
+
+  // Calculate the width needed for the longest header name
+  const maxKeyLength = useMemo(() => {
+    if (entries.length === 0) return 0;
+    return Math.max(...entries.map(([key]) => key.length));
+  }, [entries]);
+
+  // Convert character count to approximate ch units (add some padding)
+  const keyColumnWidth = `${maxKeyLength + 1}ch`;
+
+  if (entries.length === 0) {
+    return <span className="text-gray-500 text-xs">No headers captured</span>;
+  }
+
+  return (
+    <table className="w-full text-xs">
+      <tbody>
+        {entries.map(([key, value]) => (
+          <tr key={key}>
+            <td
+              className="text-purple-400 font-medium align-top py-0.5 pr-2"
+              style={{ width: keyColumnWidth }}
+            >
+              {key}:
+            </td>
+            <td className="text-gray-300 font-mono break-all align-top py-0.5">
+              {value}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 interface OperationDetailProps {
   operation: GraphQLOperation;
   mockData?: string;
   mockFileInfo?: MockFileInfo;
-  onMockDataChange?: (operationName: string, mockData: string, fileInfo?: MockFileInfo) => void;
+  onMockDataChange?: (
+    operationName: string,
+    mockData: string,
+    fileInfo?: MockFileInfo
+  ) => void;
 }
 
-type LeftTab = "request" | "query" | "variables" | "mock";
-type RightTab = "result" | "cache";
+type LeftTab = "request" | "query" | "variables";
+type RightTab = "response" | "result" | "cache" | "mock";
 
 export function OperationDetail({
   operation,
@@ -25,7 +67,7 @@ export function OperationDetail({
   onMockDataChange,
 }: OperationDetailProps) {
   const [leftTab, setLeftTab] = useState<LeftTab>("request");
-  const [rightTab, setRightTab] = useState<RightTab>("result");
+  const [rightTab, setRightTab] = useState<RightTab>("response");
   const [mockError, setMockError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,12 +79,13 @@ export function OperationDetail({
     { id: "request", label: "Request" },
     { id: "query", label: "Query" },
     { id: "variables", label: "Variables" },
-    { id: "mock", label: "Mock" },
   ];
 
   const rightTabs: { id: RightTab; label: string }[] = [
-    { id: "result", label: "Result" },
-    { id: "cache", label: "Cache" },
+    { id: "response", label: "Response" },
+    { id: "result", label: "Result Data" },
+    { id: "cache", label: "Cache Data" },
+    { id: "mock", label: "Mock Data" },
   ];
 
   // Parse mock data if available - supports both JSON and JS mock formats
@@ -51,7 +94,10 @@ export function OperationDetail({
     try {
       const parsed = JSON.parse(mockData);
       // Check if it's a JS mock wrapper
-      if (parsed.__mockType === "js" && typeof parsed.__mockScript === "string") {
+      if (
+        parsed.__mockType === "js" &&
+        typeof parsed.__mockScript === "string"
+      ) {
         return { parsedMockData: parsed, mockType: "js" as const };
       }
       // Regular JSON mock
@@ -66,7 +112,8 @@ export function OperationDetail({
 
   // Use mock data if valid, otherwise use actual result
   // For JS mocks, we show the actual result since the mock is dynamic
-  const displayResult = (mockType === "json" ? parsedMockData : null) ?? operation.result;
+  const displayResult =
+    (mockType === "json" ? parsedMockData : null) ?? operation.result;
 
   // Use cachedData from Apollo Client's queryInfo.getDiff() - this contains
   // the merged/paginated cached data directly from Apollo
@@ -143,25 +190,8 @@ export function OperationDetail({
                       <h3 className="text-xs font-medium text-gray-400 mb-2">
                         Headers
                       </h3>
-                      <div className="bg-[#2d2d4a] rounded p-3 space-y-1">
-                        {Object.entries(operation.request.headers).length > 0 ? (
-                          Object.entries(operation.request.headers).map(
-                            ([key, value]) => (
-                              <div key={key} className="flex gap-2 text-xs">
-                                <span className="text-purple-400 font-medium shrink-0">
-                                  {key}:
-                                </span>
-                                <span className="text-gray-300 font-mono break-all">
-                                  {value}
-                                </span>
-                              </div>
-                            )
-                          )
-                        ) : (
-                          <span className="text-gray-500 text-xs">
-                            No headers captured
-                          </span>
-                        )}
+                      <div className="bg-[#2d2d4a] rounded p-3">
+                        <HeadersTable headers={operation.request.headers} />
                       </div>
                     </div>
 
@@ -183,34 +213,35 @@ export function OperationDetail({
                           />
                         )}
                       </div>
-                      <div className="bg-[#2d2d4a] rounded p-3">
-                        {operation.request.body ? (
-                          <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap break-all">
-                            {(() => {
-                              try {
-                                return JSON.stringify(
-                                  JSON.parse(operation.request.body),
-                                  null,
-                                  2
-                                );
-                              } catch {
-                                return operation.request.body;
-                              }
-                            })()}
-                          </pre>
-                        ) : (
+                      {operation.request.body ? (
+                        (() => {
+                          try {
+                            const parsed = JSON.parse(operation.request.body);
+                            return <JsonTree data={parsed} />;
+                          } catch {
+                            return (
+                              <div className="bg-[#2d2d4a] rounded p-3">
+                                <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap break-all">
+                                  {operation.request.body}
+                                </pre>
+                              </div>
+                            );
+                          }
+                        })()
+                      ) : (
+                        <div className="bg-[#2d2d4a] rounded p-3">
                           <span className="text-gray-500 text-xs">No body</span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
                   <div className="text-gray-500">
                     <p>No request data available.</p>
                     <p className="mt-2 text-xs">
-                      Request data is captured when the operation makes a network
-                      request. It may not be available for cached queries or if
-                      the request hasn't been made yet.
+                      Request data is captured when the operation makes a
+                      network request. It may not be available for cached
+                      queries or if the request hasn't been made yet.
                     </p>
                   </div>
                 )}
@@ -219,139 +250,6 @@ export function OperationDetail({
 
             {leftTab === "query" && (
               <GraphQLHighlight query={operation.query} />
-            )}
-
-            {leftTab === "mock" && (
-              <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-400">
-                    Select a JSON or JS file to override the result
-                  </span>
-                  {mockData.trim() && (
-                    <button
-                      onClick={() => {
-                        onMockDataChange?.(operation.operationName, "");
-                        setMockError(null);
-                        if (fileInputRef.current) {
-                          fileInputRef.current.value = "";
-                        }
-                      }}
-                      className="px-2 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-
-                {/* File input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json,.js,application/json,text/javascript"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-
-                    const isJS = file.name.endsWith(".js");
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                      const content = event.target?.result as string;
-
-                      if (isJS) {
-                        // Accept JS files - syntax validation happens at runtime in the page context
-                        // (Chrome extension CSP doesn't allow eval/new Function in extension pages)
-                        setMockError(null);
-                        // Wrap JS in a special format so we can identify it
-                        const wrappedMock = JSON.stringify({
-                          __mockType: "js",
-                          __mockScript: content,
-                        });
-                        onMockDataChange?.(operation.operationName, wrappedMock, {
-                          fileName: file.name,
-                          fileSize: file.size,
-                        });
-                      } else {
-                        // Validate JSON
-                        try {
-                          JSON.parse(content);
-                          setMockError(null);
-                          onMockDataChange?.(operation.operationName, content, {
-                            fileName: file.name,
-                            fileSize: file.size,
-                          });
-                        } catch {
-                          setMockError("Invalid JSON file");
-                          onMockDataChange?.(operation.operationName, "");
-                        }
-                      }
-                    };
-                    reader.onerror = () => {
-                      setMockError("Failed to read file");
-                    };
-                    reader.readAsText(file);
-                  }}
-                  className="hidden"
-                  id={`mock-file-${operation.id}`}
-                />
-
-                {/* File picker - only show when no mock is loaded */}
-                {!hasMockData && (
-                  <label
-                    htmlFor={`mock-file-${operation.id}`}
-                    className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#3d3d5c] rounded-lg cursor-pointer hover:border-purple-500 hover:bg-[#2d2d4a]/50 transition-colors"
-                  >
-                    <svg
-                      className="w-8 h-8 text-gray-500 mb-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
-                    <span className="text-sm text-gray-400">
-                      Click to select a mock file
-                    </span>
-                    <span className="text-xs text-gray-600 mt-1">
-                      .json or .js files
-                    </span>
-                  </label>
-                )}
-
-                {/* Status messages */}
-                {mockError && (
-                  <p className="mt-3 text-xs text-red-400">{mockError}</p>
-                )}
-                {displayFileName && hasMockData && (
-                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded flex items-center gap-3">
-                    <svg
-                      className="w-5 h-5 text-green-400 shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                    <div>
-                      <p className="text-sm text-green-400 font-medium">
-                        {displayFileName}
-                      </p>
-                      <p className="text-xs text-green-300 mt-0.5">
-                        {displayFileSize !== null && formatFileSize(displayFileSize)} — {mockType === "js" ? "Script executes on each request (errors shown in console)" : "Will override the result"}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
             )}
 
             {leftTab === "variables" && (
@@ -396,6 +294,71 @@ export function OperationDetail({
 
           {/* Right Content */}
           <div className="flex-1 overflow-auto p-4 json-panel">
+            {rightTab === "response" && (
+              <div className="space-y-4 pr-4">
+                {operation.response ? (
+                  <>
+                    {/* Status */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2 py-0.5 text-xs rounded font-medium ${
+                            operation.response.status >= 200 &&
+                            operation.response.status < 300
+                              ? "bg-green-500/20 text-green-400"
+                              : operation.response.status >= 400
+                              ? "bg-red-500/20 text-red-400"
+                              : "bg-yellow-500/20 text-yellow-400"
+                          }`}
+                        >
+                          {operation.response.status}
+                        </span>
+                        <span className="text-xs text-gray-300 font-mono">
+                          {operation.response.statusText}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Headers */}
+                    <div>
+                      <h3 className="text-xs font-medium text-gray-400 mb-2">
+                        Headers
+                      </h3>
+                      <div className="bg-[#2d2d4a] rounded p-3">
+                        <HeadersTable headers={operation.response.headers} />
+                      </div>
+                    </div>
+
+                    {/* Body */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xs font-medium text-gray-400">
+                          Body
+                        </h3>
+                        {displayResult && <CopyButton data={displayResult} />}
+                      </div>
+                      {displayResult ? (
+                        <JsonTree data={displayResult} />
+                      ) : (
+                        <div className="bg-[#2d2d4a] rounded p-3">
+                          <span className="text-gray-500 text-xs">No body</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-gray-500">
+                    <p>No response data available.</p>
+                    <p className="mt-2 text-xs">
+                      Response data is captured when the operation receives a
+                      network response. It may not be available for cached
+                      queries or if the request hasn't completed yet.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {rightTab === "result" && (
               <>
                 <div className="json-tree w-full">
@@ -481,6 +444,148 @@ export function OperationDetail({
                   </div>
                 )}
               </>
+            )}
+
+            {rightTab === "mock" && (
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-gray-400">
+                    Select a JSON or JS file to override the result
+                  </span>
+                  {mockData.trim() && (
+                    <button
+                      onClick={() => {
+                        onMockDataChange?.(operation.operationName, "");
+                        setMockError(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
+                        }
+                      }}
+                      className="px-2 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* File input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,.js,application/json,text/javascript"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    const isJS = file.name.endsWith(".js");
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const content = event.target?.result as string;
+
+                      if (isJS) {
+                        // Accept JS files - syntax validation happens at runtime in the page context
+                        // (Chrome extension CSP doesn't allow eval/new Function in extension pages)
+                        setMockError(null);
+                        // Wrap JS in a special format so we can identify it
+                        const wrappedMock = JSON.stringify({
+                          __mockType: "js",
+                          __mockScript: content,
+                        });
+                        onMockDataChange?.(
+                          operation.operationName,
+                          wrappedMock,
+                          {
+                            fileName: file.name,
+                            fileSize: file.size,
+                          }
+                        );
+                      } else {
+                        // Validate JSON
+                        try {
+                          JSON.parse(content);
+                          setMockError(null);
+                          onMockDataChange?.(operation.operationName, content, {
+                            fileName: file.name,
+                            fileSize: file.size,
+                          });
+                        } catch {
+                          setMockError("Invalid JSON file");
+                          onMockDataChange?.(operation.operationName, "");
+                        }
+                      }
+                    };
+                    reader.onerror = () => {
+                      setMockError("Failed to read file");
+                    };
+                    reader.readAsText(file);
+                  }}
+                  className="hidden"
+                  id={`mock-file-${operation.id}`}
+                />
+
+                {/* File picker - only show when no mock is loaded */}
+                {!hasMockData && (
+                  <label
+                    htmlFor={`mock-file-${operation.id}`}
+                    className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#3d3d5c] rounded-lg cursor-pointer hover:border-purple-500 hover:bg-[#2d2d4a]/50 transition-colors"
+                  >
+                    <svg
+                      className="w-8 h-8 text-gray-500 mb-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                      />
+                    </svg>
+                    <span className="text-sm text-gray-400">
+                      Click to select a mock file
+                    </span>
+                    <span className="text-xs text-gray-600 mt-1">
+                      .json or .js files
+                    </span>
+                  </label>
+                )}
+
+                {/* Status messages */}
+                {mockError && (
+                  <p className="mt-3 text-xs text-red-400">{mockError}</p>
+                )}
+                {displayFileName && hasMockData && (
+                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded flex items-center gap-3">
+                    <svg
+                      className="w-5 h-5 text-green-400 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-green-400 font-medium">
+                        {displayFileName}
+                      </p>
+                      <p className="text-xs text-green-300 mt-0.5">
+                        {displayFileSize !== null &&
+                          formatFileSize(displayFileSize)}{" "}
+                        —{" "}
+                        {mockType === "js"
+                          ? "Script executes on each request (errors shown in console)"
+                          : "Will override the result"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -118,6 +118,7 @@ function convertToOperations(
       result: q.lastResponse ?? q.cachedData,
       cachedData: q.cachedData,
       request: q.lastRequest,
+      response: q.lastResponseInfo,
       timestamp: q.lastResponseTimestamp ?? Date.now(),
       status: q.networkStatus === 1 ? "loading" : "success",
     });
@@ -134,6 +135,7 @@ function convertToOperations(
       // Use lastResponse (actual network response) if available
       result: m.lastResponse,
       request: m.lastRequest,
+      response: m.lastResponseInfo,
       error: m.error
         ? String((m.error as { message?: string })?.message || m.error)
         : undefined,

@@ -281,6 +281,8 @@
               lastResponseTimestamp: lastResponse ? lastResponse.timestamp : null,
               // Include request info for debugging
               lastRequest: lastResponse ? lastResponse.request : null,
+              // Include response info (status, headers)
+              lastResponseInfo: lastResponse ? lastResponse.response : null,
               networkStatus: networkStatus,
               pollInterval: pollInterval,
             });
@@ -344,6 +346,8 @@
             lastResponseTimestamp: lastResponse ? lastResponse.timestamp : null,
             // Include request info for debugging
             lastRequest: lastResponse ? lastResponse.request : null,
+            // Include response info (status, headers)
+            lastResponseInfo: lastResponse ? lastResponse.response : null,
           });
         });
       }
@@ -472,6 +476,11 @@
         variables: variables,
         isMocked: true,
         request: requestInfo,
+        response: {
+          status: 200,
+          statusText: 'OK (Mocked)',
+          headers: { 'content-type': 'application/json' },
+        },
       });
 
       // Return a fake Response with the mock data
@@ -488,6 +497,17 @@
       // Clone the response so we can read the body
       const clonedResponse = response.clone();
 
+      // Capture response info (headers, status)
+      const responseHeaders = {};
+      response.headers.forEach(function(value, key) {
+        responseHeaders[key] = value;
+      });
+      const responseInfo = {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+      };
+
       clonedResponse.json().then(function(data) {
         if (operationName && data) {
           // Store the response for this operation
@@ -496,6 +516,7 @@
             timestamp: Date.now(),
             variables: variables,
             request: requestInfo,
+            response: responseInfo,
           });
 
           // Keep map size bounded

@@ -5,6 +5,12 @@ export interface RequestInfo {
   body?: string;
 }
 
+export interface ResponseInfo {
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+}
+
 export interface GraphQLOperation {
   id: string;
   type: 'query' | 'mutation' | 'subscription';
@@ -14,6 +20,7 @@ export interface GraphQLOperation {
   result?: unknown;
   cachedData?: unknown; // The merged/paginated cached data from Apollo Client
   request?: RequestInfo; // The HTTP request info for debugging
+  response?: ResponseInfo; // The HTTP response info for debugging
   error?: string;
   timestamp: number;
   duration?: number;
@@ -55,6 +62,7 @@ export interface RawWatchedQuery {
   lastResponse?: unknown; // Actual network response captured from fetch
   lastResponseTimestamp?: number;
   lastRequest?: RequestInfo; // HTTP request info for debugging
+  lastResponseInfo?: ResponseInfo; // HTTP response info for debugging
   networkStatus: number;
   pollInterval?: number | null;
 }
@@ -70,4 +78,5 @@ export interface RawMutation {
   lastResponse?: unknown; // Actual network response captured from fetch
   lastResponseTimestamp?: number;
   lastRequest?: RequestInfo; // HTTP request info for debugging
+  lastResponseInfo?: ResponseInfo; // HTTP response info for debugging
 }
