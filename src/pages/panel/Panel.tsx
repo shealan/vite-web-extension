@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import "@pages/panel/Panel.css";
-import { GraphQLOperation, RpcMethod, RawWatchedQuery, RawMutation } from "@src/shared/types";
+import {
+  GraphQLOperation,
+  RpcMethod,
+  RawWatchedQuery,
+  RawMutation,
+} from "@src/shared/types";
 import { OperationList } from "./components/OperationList";
 import { CacheViewer } from "./components/CacheViewer";
 import { OperationDetail } from "./components/OperationDetail";
@@ -45,7 +50,9 @@ function createRpcClient(port: chrome.runtime.Port) {
   return {
     request: <T,>(method: RpcMethod, params?: unknown): Promise<T> => {
       return new Promise((resolve, reject) => {
-        const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        const requestId = `${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 9)}`;
 
         // Set timeout for request
         const timeout = setTimeout(() => {
@@ -111,7 +118,9 @@ function convertToOperations(
       variables: m.variables,
       // Use lastResponse (actual network response) if available
       result: m.lastResponse,
-      error: m.error ? String((m.error as { message?: string })?.message || m.error) : undefined,
+      error: m.error
+        ? String((m.error as { message?: string })?.message || m.error)
+        : undefined,
       timestamp: m.lastResponseTimestamp ?? Date.now(),
       status: m.loading ? "loading" : m.error ? "error" : "success",
     });
@@ -259,8 +268,9 @@ export default function Panel() {
       {/* Header */}
       <header className="flex items-center justify-between px-3 py-2 bg-[#16162a] border-b border-[#2d2d4a]">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold text-white">
-            Leonardo.Ai Developer Tools
+          <h1 className="text-base font-semibold text-white flex items-center gap-1">
+            <span>Leonardo.Ai</span>
+            <span className="opacity-50 font-normal">Developer Tools</span>
           </h1>
           <span
             className={`px-2 py-0.5 text-xs rounded-full ${
@@ -320,7 +330,7 @@ export default function Panel() {
                 operations={activeTab === "queries" ? queries : mutations}
                 selectedId={selectedOperationId ?? undefined}
                 onSelect={(op) => setSelectedOperationId(op.id)}
-                operationType={activeTab as 'queries' | 'mutations'}
+                operationType={activeTab as "queries" | "mutations"}
               />
             </div>
 
