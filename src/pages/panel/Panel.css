@@ -110,3 +110,21 @@ body {
 .js-editor pre {
   pointer-events: none;
 }
+
+/* Editable JSON Tree Styles - reduce nesting line opacity */
+.editable-json-tree div[style*="border-left"],
+.editable-json-tree span[style*="border-left"] {
+  border-left-color: rgba(61, 61, 92, 0.5) !important;
+}
+
+/* JSON Tree icon colors - grey default, white on hover */
+.editable-json-tree svg {
+  fill: #6b7280 !important;
+  stroke: #6b7280 !important;
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+.editable-json-tree svg:hover {
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+}

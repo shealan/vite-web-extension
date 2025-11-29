@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from "react";
 import { GraphQLOperation } from "@src/shared/types";
-import { JsonTree, CopyButton } from "./JsonTree";
+import { CopyButton } from "./JsonTree";
 import { EditableJsonTree } from "./EditableJsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
 import { JavaScriptEditor } from "./JavaScriptEditor";
@@ -383,7 +383,7 @@ export function OperationDetail({
                         (() => {
                           try {
                             const parsed = JSON.parse(operation.request.body);
-                            return <JsonTree data={parsed} />;
+                            return <EditableJsonTree data={parsed} readOnly />;
                           } catch {
                             return (
                               <div className="bg-[#2d2d4a] rounded p-3">
@@ -423,7 +423,7 @@ export function OperationDetail({
                 <div className="json-tree w-full">
                   {operation.variables &&
                   Object.keys(operation.variables).length > 0 ? (
-                    <JsonTree data={operation.variables} />
+                    <EditableJsonTree data={operation.variables} readOnly />
                   ) : (
                     <span className="text-gray-500">No variables</span>
                   )}
@@ -504,7 +504,7 @@ export function OperationDetail({
                         {displayResult && <CopyButton data={displayResult} />}
                       </div>
                       {displayResult ? (
-                        <JsonTree data={displayResult} />
+                        <EditableJsonTree data={displayResult} readOnly />
                       ) : (
                         <div className="bg-[#2d2d4a] rounded p-3">
                           <span className="text-gray-500 text-xs">No body</span>
@@ -575,7 +575,7 @@ export function OperationDetail({
                       <span>Loading...</span>
                     </div>
                   ) : displayResult ? (
-                    <JsonTree data={displayResult} />
+                    <EditableJsonTree data={displayResult} readOnly />
                   ) : (
                     <span className="text-gray-500">No result</span>
                   )}
@@ -592,7 +592,7 @@ export function OperationDetail({
               <>
                 <div className="json-tree w-full">
                   {operationCache ? (
-                    <JsonTree data={operationCache} />
+                    <EditableJsonTree data={operationCache} readOnly />
                   ) : (
                     <div className="text-gray-500">
                       <p>No cached data available for this operation.</p>

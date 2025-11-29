@@ -475,7 +475,7 @@ export default function Panel() {
           onClick={clearOperations}
           className="px-3 py-1 text-xs bg-[#2d2d4a] hover:bg-[#3d3d5c] rounded transition-colors"
         >
-          Clear
+          Refresh
         </button>
       </header>
 

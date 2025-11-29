@@ -47,8 +47,8 @@ export function EditableJsonTree({
         collapsed={2}
         collapseStringsAfterLength={100}
         displayDataTypes={false}
-        displayObjectSize={true}
-        enableClipboard={true}
+        displayObjectSize={false}
+        enableClipboard={false}
         indentWidth={2}
         onEdit={readOnly ? false : handleChange}
         onAdd={readOnly ? false : handleChange}

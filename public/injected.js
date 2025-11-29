@@ -1,10 +1,10 @@
 // Apollo Lite DevTools - Injected Script
 // This runs in the page context to access Apollo Client internals
 // Uses RPC for polling + fetch interception for capturing actual responses
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
-  const SOURCE = 'apollo-lite-devtools-page';
+  const SOURCE = "apollo-lite-devtools-page";
 
   // Store last response for each operation (by operation name)
   const lastResponses = new Map();
@@ -12,8 +12,184 @@
   // Store mock data overrides for operations (by operation name)
   const mockOverrides = new Map();
 
+  // Toast notification system for mock indicators
+  const toastContainer = {
+    element: null,
+    toasts: new Map(),
+    lastShown: new Map(), // Track when each operation was last shown (for debouncing)
+
+    init: function () {
+      if (this.element) return;
+
+      // Wait for body to exist
+      if (!document.body) {
+        console.log(
+          "[Apollo Lite] Toast: document.body not ready, deferring init"
+        );
+        return false;
+      }
+
+      this.element = document.createElement("div");
+      this.element.id = "apollo-lite-toast-container";
+      this.element.style.cssText = `
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2147483647;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      `;
+      document.body.appendChild(this.element);
+      console.log("[Apollo Lite] Toast container initialized");
+      return true;
+    },
+
+    show: function (operationName, isJsMock) {
+      // Debounce: don't show toast for same operation within 3 seconds
+      const now = Date.now();
+      const lastTime = this.lastShown.get(operationName) || 0;
+      if (now - lastTime < 3000) {
+        return;
+      }
+      this.lastShown.set(operationName, now);
+
+      this.init();
+
+      // If container couldn't be initialized, skip showing toast
+      if (!this.element) {
+        console.log(
+          "[Apollo Lite] Toast: Cannot show toast, container not ready"
+        );
+        return;
+      }
+
+      console.log(
+        "[Apollo Lite] Showing toast for:",
+        operationName,
+        "isJsMock:",
+        isJsMock
+      );
+
+      // If toast already exists for this operation, just update the timestamp
+      if (this.toasts.has(operationName)) {
+        const existing = this.toasts.get(operationName);
+        existing.timestamp = Date.now();
+        // Restart the fade animation
+        existing.element.style.animation = "none";
+        existing.element.offsetHeight; // Trigger reflow
+        existing.element.style.animation = "apolloLiteToastFadeIn 0.3s ease";
+        return;
+      }
+
+      const toast = document.createElement("div");
+      toast.style.cssText = `
+        background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+        color: white;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        pointer-events: auto;
+        animation: apolloLiteToastFadeIn 0.3s ease;
+        max-width: 300px;
+      `;
+
+      // Add keyframes if not already added
+      if (!document.getElementById("apollo-lite-toast-styles")) {
+        const style = document.createElement("style");
+        style.id = "apollo-lite-toast-styles";
+        style.textContent = `
+          @keyframes apolloLiteToastFadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes apolloLiteToastFadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(20px); }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // Icon (mock/script indicator)
+      const icon = document.createElement("span");
+      icon.innerHTML = isJsMock
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
+      icon.style.cssText =
+        "display: flex; align-items: center; flex-shrink: 0;";
+
+      // Text
+      const text = document.createElement("span");
+      text.style.cssText =
+        "overflow: hidden; text-overflow: ellipsis; white-space: nowrap;";
+      text.textContent = operationName + " is mocked";
+
+      // Close button
+      const closeBtn = document.createElement("button");
+      closeBtn.innerHTML =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+      closeBtn.style.cssText = `
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 2px;
+        display: flex;
+        align-items: center;
+        opacity: 0.7;
+        flex-shrink: 0;
+        margin-left: 4px;
+      `;
+      closeBtn.onmouseover = function () {
+        closeBtn.style.opacity = "1";
+      };
+      closeBtn.onmouseout = function () {
+        closeBtn.style.opacity = "0.7";
+      };
+      closeBtn.onclick = function () {
+        toastContainer.hide(operationName);
+      };
+
+      toast.appendChild(icon);
+      toast.appendChild(text);
+      toast.appendChild(closeBtn);
+
+      this.element.appendChild(toast);
+      this.toasts.set(operationName, { element: toast, timestamp: Date.now() });
+
+      // Auto-hide after 5 seconds
+      setTimeout(function () {
+        toastContainer.hide(operationName);
+      }, 5000);
+    },
+
+    hide: function (operationName) {
+      const toastData = this.toasts.get(operationName);
+      if (!toastData) return;
+
+      toastData.element.style.animation =
+        "apolloLiteToastFadeOut 0.3s ease forwards";
+      setTimeout(function () {
+        if (toastData.element.parentNode) {
+          toastData.element.parentNode.removeChild(toastData.element);
+        }
+        toastContainer.toasts.delete(operationName);
+      }, 300);
+    },
+  };
+
   function postMessage(type, payload) {
-    window.postMessage({ source: SOURCE, type, payload }, '*');
+    window.postMessage({ source: SOURCE, type, payload }, "*");
   }
 
   function getApolloClient() {
@@ -32,7 +208,7 @@
 
   // Simple GraphQL AST to string printer (minimal implementation)
   function printGraphQL(document) {
-    if (!document || !document.definitions) return '';
+    if (!document || !document.definitions) return "";
 
     try {
       // First try to use the source if available
@@ -44,127 +220,150 @@
       const parts = [];
 
       for (const def of document.definitions) {
-        if (def.kind === 'OperationDefinition') {
+        if (def.kind === "OperationDefinition") {
           let opStr = def.operation;
           if (def.name) {
-            opStr += ' ' + def.name.value;
+            opStr += " " + def.name.value;
           }
           if (def.variableDefinitions && def.variableDefinitions.length > 0) {
-            opStr += '(' + def.variableDefinitions.map(printVariableDefinition).join(', ') + ')';
+            opStr +=
+              "(" +
+              def.variableDefinitions.map(printVariableDefinition).join(", ") +
+              ")";
           }
-          opStr += ' ' + printSelectionSet(def.selectionSet);
+          opStr += " " + printSelectionSet(def.selectionSet);
           parts.push(opStr);
-        } else if (def.kind === 'FragmentDefinition') {
-          let fragStr = 'fragment ' + def.name.value + ' on ' + def.typeCondition.name.value;
-          fragStr += ' ' + printSelectionSet(def.selectionSet);
+        } else if (def.kind === "FragmentDefinition") {
+          let fragStr =
+            "fragment " +
+            def.name.value +
+            " on " +
+            def.typeCondition.name.value;
+          fragStr += " " + printSelectionSet(def.selectionSet);
           parts.push(fragStr);
         }
       }
 
-      return parts.join('\n\n');
+      return parts.join("\n\n");
     } catch (e) {
-      console.error('[Apollo Lite] Failed to print GraphQL:', e);
-      return '';
+      console.error("[Apollo Lite] Failed to print GraphQL:", e);
+      return "";
     }
   }
 
   function printVariableDefinition(varDef) {
-    let str = '$' + varDef.variable.name.value + ': ' + printType(varDef.type);
+    let str = "$" + varDef.variable.name.value + ": " + printType(varDef.type);
     if (varDef.defaultValue) {
-      str += ' = ' + printValue(varDef.defaultValue);
+      str += " = " + printValue(varDef.defaultValue);
     }
     return str;
   }
 
   function printType(type) {
-    if (type.kind === 'NonNullType') {
-      return printType(type.type) + '!';
+    if (type.kind === "NonNullType") {
+      return printType(type.type) + "!";
     }
-    if (type.kind === 'ListType') {
-      return '[' + printType(type.type) + ']';
+    if (type.kind === "ListType") {
+      return "[" + printType(type.type) + "]";
     }
     return type.name.value;
   }
 
   function printValue(value) {
-    if (!value) return 'null';
+    if (!value) return "null";
     switch (value.kind) {
-      case 'IntValue':
-      case 'FloatValue':
+      case "IntValue":
+      case "FloatValue":
         return value.value;
-      case 'StringValue':
+      case "StringValue":
         return JSON.stringify(value.value);
-      case 'BooleanValue':
-        return value.value ? 'true' : 'false';
-      case 'NullValue':
-        return 'null';
-      case 'EnumValue':
+      case "BooleanValue":
+        return value.value ? "true" : "false";
+      case "NullValue":
+        return "null";
+      case "EnumValue":
         return value.value;
-      case 'Variable':
-        return '$' + value.name.value;
-      case 'ListValue':
-        return '[' + value.values.map(printValue).join(', ') + ']';
-      case 'ObjectValue':
-        return '{' + value.fields.map(f => f.name.value + ': ' + printValue(f.value)).join(', ') + '}';
+      case "Variable":
+        return "$" + value.name.value;
+      case "ListValue":
+        return "[" + value.values.map(printValue).join(", ") + "]";
+      case "ObjectValue":
+        return (
+          "{" +
+          value.fields
+            .map((f) => f.name.value + ": " + printValue(f.value))
+            .join(", ") +
+          "}"
+        );
       default:
-        return '';
+        return "";
     }
   }
 
   function printSelectionSet(selectionSet, indent) {
-    indent = indent || '';
-    if (!selectionSet || !selectionSet.selections) return '{}';
+    indent = indent || "";
+    if (!selectionSet || !selectionSet.selections) return "{}";
 
-    const innerIndent = indent + '  ';
-    const selections = selectionSet.selections.map(function(sel) {
+    const innerIndent = indent + "  ";
+    const selections = selectionSet.selections.map(function (sel) {
       return innerIndent + printSelection(sel, innerIndent);
     });
 
-    return '{\n' + selections.join('\n') + '\n' + indent + '}';
+    return "{\n" + selections.join("\n") + "\n" + indent + "}";
   }
 
   function printSelection(selection, indent) {
-    if (selection.kind === 'Field') {
-      let str = '';
+    if (selection.kind === "Field") {
+      let str = "";
       if (selection.alias) {
-        str += selection.alias.value + ': ';
+        str += selection.alias.value + ": ";
       }
       str += selection.name.value;
 
       if (selection.arguments && selection.arguments.length > 0) {
-        str += '(' + selection.arguments.map(function(arg) {
-          return arg.name.value + ': ' + printValue(arg.value);
-        }).join(', ') + ')';
+        str +=
+          "(" +
+          selection.arguments
+            .map(function (arg) {
+              return arg.name.value + ": " + printValue(arg.value);
+            })
+            .join(", ") +
+          ")";
       }
 
       if (selection.directives && selection.directives.length > 0) {
-        str += ' ' + selection.directives.map(printDirective).join(' ');
+        str += " " + selection.directives.map(printDirective).join(" ");
       }
 
       if (selection.selectionSet) {
-        str += ' ' + printSelectionSet(selection.selectionSet, indent);
+        str += " " + printSelectionSet(selection.selectionSet, indent);
       }
 
       return str;
-    } else if (selection.kind === 'FragmentSpread') {
-      return '...' + selection.name.value;
-    } else if (selection.kind === 'InlineFragment') {
-      let str = '...';
+    } else if (selection.kind === "FragmentSpread") {
+      return "..." + selection.name.value;
+    } else if (selection.kind === "InlineFragment") {
+      let str = "...";
       if (selection.typeCondition) {
-        str += ' on ' + selection.typeCondition.name.value;
+        str += " on " + selection.typeCondition.name.value;
       }
-      str += ' ' + printSelectionSet(selection.selectionSet, indent);
+      str += " " + printSelectionSet(selection.selectionSet, indent);
       return str;
     }
-    return '';
+    return "";
   }
 
   function printDirective(directive) {
-    let str = '@' + directive.name.value;
+    let str = "@" + directive.name.value;
     if (directive.arguments && directive.arguments.length > 0) {
-      str += '(' + directive.arguments.map(function(arg) {
-        return arg.name.value + ': ' + printValue(arg.value);
-      }).join(', ') + ')';
+      str +=
+        "(" +
+        directive.arguments
+          .map(function (arg) {
+            return arg.name.value + ": " + printValue(arg.value);
+          })
+          .join(", ") +
+        ")";
     }
     return str;
   }
@@ -175,7 +374,7 @@
     if (!client || !client.cache) return null;
 
     try {
-      if (typeof client.cache.extract === 'function') {
+      if (typeof client.cache.extract === "function") {
         return client.cache.extract();
       }
       if (client.cache.data && client.cache.data.data) {
@@ -183,7 +382,7 @@
       }
       return null;
     } catch (e) {
-      console.error('[Apollo Lite] Failed to extract cache:', e);
+      console.error("[Apollo Lite] Failed to extract cache:", e);
       return null;
     }
   }
@@ -197,16 +396,18 @@
 
     try {
       let observableQueries;
-      if (typeof client.queryManager.getObservableQueries === 'function') {
-        observableQueries = client.queryManager.getObservableQueries('active');
+      if (typeof client.queryManager.getObservableQueries === "function") {
+        observableQueries = client.queryManager.getObservableQueries("active");
       } else if (client.queryManager.queries) {
         observableQueries = client.queryManager.queries;
       }
 
       if (observableQueries) {
-        observableQueries.forEach(function(oq, queryId) {
+        observableQueries.forEach(function (oq, queryId) {
           try {
-            const queryInfo = oq.queryInfo || (oq.observableQuery && oq.observableQuery.queryInfo);
+            const queryInfo =
+              oq.queryInfo ||
+              (oq.observableQuery && oq.observableQuery.queryInfo);
 
             let cachedData = null;
             let document = null;
@@ -214,7 +415,7 @@
             let networkStatus = 7;
 
             if (queryInfo) {
-              if (typeof queryInfo.getDiff === 'function') {
+              if (typeof queryInfo.getDiff === "function") {
                 const diff = queryInfo.getDiff();
                 cachedData = diff ? diff.result : null;
               }
@@ -248,10 +449,10 @@
               }
             }
 
-            let operationName = 'Unknown';
+            let operationName = "Unknown";
             if (document && document.definitions) {
               for (const def of document.definitions) {
-                if (def.kind === 'OperationDefinition' && def.name) {
+                if (def.kind === "OperationDefinition" && def.name) {
                   operationName = def.name.value;
                   break;
                 }
@@ -278,7 +479,9 @@
               cachedData: cachedData,
               // Include the last actual network response
               lastResponse: lastResponse ? lastResponse.data : null,
-              lastResponseTimestamp: lastResponse ? lastResponse.timestamp : null,
+              lastResponseTimestamp: lastResponse
+                ? lastResponse.timestamp
+                : null,
               // Include request info for debugging
               lastRequest: lastResponse ? lastResponse.request : null,
               // Include response info (status, headers)
@@ -287,12 +490,12 @@
               pollInterval: pollInterval,
             });
           } catch (e) {
-            console.error('[Apollo Lite] Error processing query:', e);
+            console.error("[Apollo Lite] Error processing query:", e);
           }
         });
       }
     } catch (e) {
-      console.error('[Apollo Lite] Failed to get queries:', e);
+      console.error("[Apollo Lite] Failed to get queries:", e);
     }
 
     return queries;
@@ -309,21 +512,22 @@
       const mutationStore = client.queryManager.mutationStore;
       if (!mutationStore) return [];
 
-      const mutationsObj = typeof mutationStore.getStore === 'function'
-        ? mutationStore.getStore()
-        : mutationStore;
+      const mutationsObj =
+        typeof mutationStore.getStore === "function"
+          ? mutationStore.getStore()
+          : mutationStore;
 
-      if (mutationsObj && typeof mutationsObj === 'object') {
-        Object.keys(mutationsObj).forEach(function(key) {
+      if (mutationsObj && typeof mutationsObj === "object") {
+        Object.keys(mutationsObj).forEach(function (key) {
           const mutation = mutationsObj[key];
           if (!mutation) return;
 
-          let operationName = 'Unknown';
+          let operationName = "Unknown";
           const document = mutation.mutation;
 
           if (document && document.definitions) {
             for (const def of document.definitions) {
-              if (def.kind === 'OperationDefinition' && def.name) {
+              if (def.kind === "OperationDefinition" && def.name) {
                 operationName = def.name.value;
                 break;
               }
@@ -352,7 +556,7 @@
         });
       }
     } catch (e) {
-      console.error('[Apollo Lite] Failed to get mutations:', e);
+      console.error("[Apollo Lite] Failed to get mutations:", e);
     }
 
     return mutations;
@@ -362,13 +566,15 @@
     if (!error) return null;
     return {
       message: error.message || String(error),
-      name: error.name || 'Error',
+      name: error.name || "Error",
       stack: error.stack,
       graphQLErrors: error.graphQLErrors || [],
-      networkError: error.networkError ? {
-        message: error.networkError.message,
-        name: error.networkError.name,
-      } : null,
+      networkError: error.networkError
+        ? {
+            message: error.networkError.message,
+            name: error.networkError.name,
+          }
+        : null,
     };
   }
 
@@ -379,15 +585,15 @@
     // Get headers from init object
     if (init && init.headers) {
       if (init.headers instanceof Headers) {
-        init.headers.forEach(function(value, key) {
+        init.headers.forEach(function (value, key) {
           headers[key] = value;
         });
       } else if (Array.isArray(init.headers)) {
-        init.headers.forEach(function(pair) {
+        init.headers.forEach(function (pair) {
           headers[pair[0]] = pair[1];
         });
-      } else if (typeof init.headers === 'object') {
-        Object.keys(init.headers).forEach(function(key) {
+      } else if (typeof init.headers === "object") {
+        Object.keys(init.headers).forEach(function (key) {
           headers[key] = init.headers[key];
         });
       }
@@ -395,7 +601,7 @@
 
     // Also check if input is a Request object with headers
     if (input instanceof Request) {
-      input.headers.forEach(function(value, key) {
+      input.headers.forEach(function (value, key) {
         if (!headers[key]) {
           headers[key] = value;
         }
@@ -407,12 +613,16 @@
 
   // Intercept fetch to capture GraphQL responses and apply mock overrides
   const originalFetch = window.fetch;
-  window.fetch = function(input, init) {
-    const url = typeof input === 'string' ? input : input.url;
+  window.fetch = function (input, init) {
+    const url = typeof input === "string" ? input : input.url;
 
     // Check if this looks like a GraphQL request
-    const isGraphQL = url.includes('graphql') ||
-                      (init && init.body && typeof init.body === 'string' && init.body.includes('"query"'));
+    const isGraphQL =
+      url.includes("graphql") ||
+      (init &&
+        init.body &&
+        typeof init.body === "string" &&
+        init.body.includes('"query"'));
 
     if (!isGraphQL) {
       return originalFetch.apply(this, arguments);
@@ -440,7 +650,7 @@
     const requestHeaders = extractHeaders(init, input);
     const requestInfo = {
       url: url,
-      method: (init && init.method) || 'POST',
+      method: (init && init.method) || "POST",
       headers: requestHeaders,
       body: requestBody,
     };
@@ -451,7 +661,9 @@
       let mockData;
 
       // Check if this is a JS mock (has __mockType and __mockScript)
-      if (mockConfig && mockConfig.__mockType === 'js' && mockConfig.__mockScript) {
+      var isJsMock =
+        mockConfig && mockConfig.__mockType === "js" && mockConfig.__mockScript;
+      if (isJsMock) {
         try {
           // Execute the JS script to get the mock data
           // The script has access to: variables, operationName, request
@@ -464,24 +676,49 @@
           }
           var mockRequest = {
             url: url,
-            method: (init && init.method) || 'POST',
+            method: (init && init.method) || "POST",
             headers: requestHeaders,
             body: requestBody,
             parsedBody: parsedBody,
           };
           // eslint-disable-next-line no-new-func
-          const mockFn = new Function('variables', 'operationName', 'request', mockConfig.__mockScript);
+          const mockFn = new Function(
+            "variables",
+            "operationName",
+            "request",
+            mockConfig.__mockScript
+          );
           mockData = mockFn(variables, operationName, mockRequest);
-          console.log('[Apollo Lite] Executed JS mock for:', operationName, mockData);
+          console.log(
+            "[Apollo Lite] Executed JS mock for:",
+            operationName,
+            mockData
+          );
         } catch (e) {
-          console.error('[Apollo Lite] JS mock execution error for:', operationName, e);
+          console.error(
+            "[Apollo Lite] JS mock execution error for:",
+            operationName,
+            e
+          );
           // On error, fall through to real request
           return originalFetch.apply(this, arguments);
         }
       } else {
         // Regular JSON mock
         mockData = mockConfig;
-        console.log('[Apollo Lite] Returning JSON mock for:', operationName, mockData);
+        console.log(
+          "[Apollo Lite] Returning JSON mock for:",
+          operationName,
+          mockData
+        );
+      }
+
+      // Show toast notification
+      console.log("[Apollo Lite] About to show toast for:", operationName);
+      try {
+        toastContainer.show(operationName, isJsMock);
+      } catch (e) {
+        console.error("[Apollo Lite] Toast error:", e);
       }
 
       // Store the mock as the last response
@@ -493,28 +730,30 @@
         request: requestInfo,
         response: {
           status: 200,
-          statusText: 'OK (Mocked)',
-          headers: { 'content-type': 'application/json' },
+          statusText: "OK (Mocked)",
+          headers: { "content-type": "application/json" },
         },
       });
 
       // Return a fake Response with the mock data
-      return Promise.resolve(new Response(JSON.stringify(mockData), {
-        status: 200,
-        statusText: 'OK',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }));
+      return Promise.resolve(
+        new Response(JSON.stringify(mockData), {
+          status: 200,
+          statusText: "OK",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+      );
     }
 
-    return originalFetch.apply(this, arguments).then(function(response) {
+    return originalFetch.apply(this, arguments).then(function (response) {
       // Clone the response so we can read the body
       const clonedResponse = response.clone();
 
       // Capture response info (headers, status)
       const responseHeaders = {};
-      response.headers.forEach(function(value, key) {
+      response.headers.forEach(function (value, key) {
         responseHeaders[key] = value;
       });
       const responseInfo = {
@@ -523,26 +762,29 @@
         headers: responseHeaders,
       };
 
-      clonedResponse.json().then(function(data) {
-        if (operationName && data) {
-          // Store the response for this operation
-          lastResponses.set(operationName, {
-            data: data,
-            timestamp: Date.now(),
-            variables: variables,
-            request: requestInfo,
-            response: responseInfo,
-          });
+      clonedResponse
+        .json()
+        .then(function (data) {
+          if (operationName && data) {
+            // Store the response for this operation
+            lastResponses.set(operationName, {
+              data: data,
+              timestamp: Date.now(),
+              variables: variables,
+              request: requestInfo,
+              response: responseInfo,
+            });
 
-          // Keep map size bounded
-          if (lastResponses.size > 100) {
-            const firstKey = lastResponses.keys().next().value;
-            lastResponses.delete(firstKey);
+            // Keep map size bounded
+            if (lastResponses.size > 100) {
+              const firstKey = lastResponses.keys().next().value;
+              lastResponses.delete(firstKey);
+            }
           }
-        }
-      }).catch(function() {
-        // Not JSON response, ignore
-      });
+        })
+        .catch(function () {
+          // Not JSON response, ignore
+        });
 
       return response;
     });
@@ -550,97 +792,105 @@
 
   // RPC request handlers
   const rpcHandlers = {
-    getQueries: function() {
+    getQueries: function () {
       return getQueries();
     },
-    getMutations: function() {
+    getMutations: function () {
       return getMutations();
     },
-    getCache: function() {
+    getCache: function () {
       return getCache();
     },
-    getClientInfo: function() {
+    getClientInfo: function () {
       const client = getApolloClient();
       if (!client) return null;
       return {
-        version: client.version || 'unknown',
+        version: client.version || "unknown",
         queryCount: getQueries().length,
         mutationCount: getMutations().length,
       };
     },
-    setMockData: function(params) {
+    setMockData: function (params) {
       if (!params || !params.operationName) {
-        return { success: false, error: 'operationName is required' };
+        return { success: false, error: "operationName is required" };
       }
       if (params.mockData) {
         mockOverrides.set(params.operationName, params.mockData);
-        console.log('[Apollo Lite] Mock set for:', params.operationName);
+        console.log("[Apollo Lite] Mock set for:", params.operationName);
       } else {
         mockOverrides.delete(params.operationName);
-        console.log('[Apollo Lite] Mock cleared for:', params.operationName);
+        console.log("[Apollo Lite] Mock cleared for:", params.operationName);
       }
-      return { success: true, operationName: params.operationName, hasMock: mockOverrides.has(params.operationName) };
+      return {
+        success: true,
+        operationName: params.operationName,
+        hasMock: mockOverrides.has(params.operationName),
+      };
     },
-    getMockData: function() {
+    getMockData: function () {
       const mocks = {};
-      mockOverrides.forEach(function(value, key) {
+      mockOverrides.forEach(function (value, key) {
         mocks[key] = value;
       });
       return mocks;
     },
-    clearAllMocks: function() {
+    clearAllMocks: function () {
       mockOverrides.clear();
-      console.log('[Apollo Lite] All mocks cleared');
+      console.log("[Apollo Lite] All mocks cleared");
       return { success: true };
     },
   };
 
   // Listen for RPC requests from content script
-  window.addEventListener('message', function(event) {
+  window.addEventListener("message", function (event) {
     if (event.source !== window) return;
-    if (!event.data || event.data.source !== 'apollo-lite-devtools-content') return;
+    if (!event.data || event.data.source !== "apollo-lite-devtools-content")
+      return;
 
     const type = event.data.type;
     const requestId = event.data.requestId;
 
     // Handle RPC requests
-    if (type === 'RPC_REQUEST' && event.data.method) {
+    if (type === "RPC_REQUEST" && event.data.method) {
       const method = event.data.method;
       const handler = rpcHandlers[method];
 
       if (handler) {
         try {
           const result = handler(event.data.params);
-          postMessage('RPC_RESPONSE', {
+          postMessage("RPC_RESPONSE", {
             requestId: requestId,
             result: result,
           });
         } catch (e) {
-          postMessage('RPC_RESPONSE', {
+          postMessage("RPC_RESPONSE", {
             requestId: requestId,
             error: e.message,
           });
         }
       } else {
-        postMessage('RPC_RESPONSE', {
+        postMessage("RPC_RESPONSE", {
           requestId: requestId,
-          error: 'Unknown method: ' + method,
+          error: "Unknown method: " + method,
         });
       }
       return;
     }
 
     // Legacy handlers for backwards compatibility
-    if (type === 'REQUEST_CACHE') {
+    if (type === "REQUEST_CACHE") {
       const cache = getCache();
       if (cache) {
-        postMessage('CACHE_UPDATE', { data: cache, timestamp: Date.now() });
+        postMessage("CACHE_UPDATE", { data: cache, timestamp: Date.now() });
       }
     }
 
-    if (type === 'REQUEST_WATCHED_QUERIES') {
+    if (type === "REQUEST_WATCHED_QUERIES") {
       const queries = getQueries();
-      postMessage('WATCHED_QUERIES', { queries: queries, timestamp: Date.now() });
+      postMessage("WATCHED_QUERIES", {
+        queries: queries,
+        timestamp: Date.now(),
+      });
     }
   });
 
@@ -648,9 +898,9 @@
   function checkForApolloClient() {
     const client = getApolloClient();
     if (client) {
-      console.log('[Apollo Lite] Apollo Client found!', client);
-      postMessage('APOLLO_CLIENT_DETECTED', {
-        version: client.version || 'unknown',
+      console.log("[Apollo Lite] Apollo Client found!", client);
+      postMessage("APOLLO_CLIENT_DETECTED", {
+        version: client.version || "unknown",
         hasCache: !!client.cache,
       });
       return true;
@@ -662,16 +912,16 @@
   let _apolloClient = window.__APOLLO_CLIENT__;
 
   try {
-    Object.defineProperty(window, '__APOLLO_CLIENT__', {
-      get: function() {
+    Object.defineProperty(window, "__APOLLO_CLIENT__", {
+      get: function () {
         return _apolloClient;
       },
-      set: function(client) {
-        console.log('[Apollo Lite] __APOLLO_CLIENT__ was set!', client);
+      set: function (client) {
+        console.log("[Apollo Lite] __APOLLO_CLIENT__ was set!", client);
         _apolloClient = client;
         if (client) {
-          postMessage('APOLLO_CLIENT_DETECTED', {
-            version: client.version || 'unknown',
+          postMessage("APOLLO_CLIENT_DETECTED", {
+            version: client.version || "unknown",
             hasCache: !!client.cache,
           });
         }
@@ -679,7 +929,7 @@
       configurable: true,
     });
   } catch (e) {
-    console.log('[Apollo Lite] Could not set up property watcher:', e);
+    console.log("[Apollo Lite] Could not set up property watcher:", e);
   }
 
   // Check for Apollo Client on load and periodically
@@ -687,17 +937,19 @@
     let retries = 0;
     const maxRetries = 10;
 
-    const interval = setInterval(function() {
+    const interval = setInterval(function () {
       retries++;
       if (checkForApolloClient() || retries >= maxRetries) {
         clearInterval(interval);
         if (retries >= maxRetries && !getApolloClient()) {
-          console.log('[Apollo Lite] Apollo Client not found after retries');
-          postMessage('APOLLO_CLIENT_NOT_FOUND', {});
+          console.log("[Apollo Lite] Apollo Client not found after retries");
+          postMessage("APOLLO_CLIENT_NOT_FOUND", {});
         }
       }
     }, 1000);
   }
 
-  console.log('[Apollo Lite] Injected script loaded - RPC handlers ready, fetch intercepted');
+  console.log(
+    "[Apollo Lite] Injected script loaded - RPC handlers ready, fetch intercepted"
+  );
 })();
