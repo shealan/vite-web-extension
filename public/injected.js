@@ -437,10 +437,11 @@
     }
 
     // Capture request info
+    const requestHeaders = extractHeaders(init, input);
     const requestInfo = {
       url: url,
       method: (init && init.method) || 'POST',
-      headers: extractHeaders(init, input),
+      headers: requestHeaders,
       body: requestBody,
     };
 
@@ -453,10 +454,24 @@
       if (mockConfig && mockConfig.__mockType === 'js' && mockConfig.__mockScript) {
         try {
           // Execute the JS script to get the mock data
-          // The script has access to: variables, operationName, requestInfo
+          // The script has access to: variables, operationName, request
+          // request contains: url, method, headers, body (raw string), parsedBody (parsed JSON)
+          var parsedBody = null;
+          try {
+            parsedBody = requestBody ? JSON.parse(requestBody) : null;
+          } catch (e) {
+            // Body is not valid JSON
+          }
+          var mockRequest = {
+            url: url,
+            method: (init && init.method) || 'POST',
+            headers: requestHeaders,
+            body: requestBody,
+            parsedBody: parsedBody,
+          };
           // eslint-disable-next-line no-new-func
           const mockFn = new Function('variables', 'operationName', 'request', mockConfig.__mockScript);
-          mockData = mockFn(variables, operationName, requestInfo);
+          mockData = mockFn(variables, operationName, mockRequest);
           console.log('[Apollo Lite] Executed JS mock for:', operationName, mockData);
         } catch (e) {
           console.error('[Apollo Lite] JS mock execution error for:', operationName, e);

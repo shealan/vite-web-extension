@@ -83,3 +83,30 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #4d4d6d;
 }
+
+/* JavaScript Editor Styles */
+.js-editor {
+  position: relative;
+}
+
+.js-editor textarea,
+.js-editor pre {
+  font-family: Monaco, Menlo, "Ubuntu Mono", monospace !important;
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+}
+
+.js-editor textarea {
+  outline: none !important;
+  caret-color: #e5e7eb;
+}
+
+.js-editor textarea::selection {
+  background: rgba(125, 211, 252, 0.3);
+}
+
+.js-editor pre {
+  pointer-events: none;
+}

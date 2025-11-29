@@ -9,6 +9,7 @@ import {
 import { OperationList } from "./components/OperationList";
 import { CacheViewer } from "./components/CacheViewer";
 import { OperationDetail } from "./components/OperationDetail";
+import Logo from "./components/Logo";
 
 type TabType = "queries" | "mutations" | "cache";
 
@@ -185,7 +186,9 @@ export default function Panel() {
   );
   // Mock data storage keyed by operation name
   const [mockDataMap, setMockDataMap] = useState<Record<string, string>>({});
-  const [mockFileInfoMap, setMockFileInfoMap] = useState<Record<string, MockFileInfo>>({});
+  const [mockFileInfoMap, setMockFileInfoMap] = useState<
+    Record<string, MockFileInfo>
+  >({});
   const [isInitialized, setIsInitialized] = useState(false);
 
   const portRef = useRef<chrome.runtime.Port | null>(null);
@@ -198,26 +201,23 @@ export default function Panel() {
     : null;
 
   // Re-apply all mocks to the injected script (used after page refresh)
-  const reapplyMocks = useCallback(
-    async (mocks: Record<string, string>) => {
-      if (!rpcClientRef.current) return;
+  const reapplyMocks = useCallback(async (mocks: Record<string, string>) => {
+    if (!rpcClientRef.current) return;
 
-      for (const [operationName, mockDataStr] of Object.entries(mocks)) {
-        if (!mockDataStr.trim()) continue;
-        try {
-          const parsedMockData = JSON.parse(mockDataStr);
-          await rpcClientRef.current.request("setMockData", {
-            operationName,
-            mockData: parsedMockData,
-          });
-          console.log("[Leonardo.Ai] Re-applied mock for:", operationName);
-        } catch {
-          // Invalid JSON, skip
-        }
+    for (const [operationName, mockDataStr] of Object.entries(mocks)) {
+      if (!mockDataStr.trim()) continue;
+      try {
+        const parsedMockData = JSON.parse(mockDataStr);
+        await rpcClientRef.current.request("setMockData", {
+          operationName,
+          mockData: parsedMockData,
+        });
+        console.log("[Leonardo.Ai] Re-applied mock for:", operationName);
+      } catch {
+        // Invalid JSON, skip
       }
-    },
-    []
-  );
+    }
+  }, []);
 
   // Load persisted state on mount
   useEffect(() => {
@@ -383,7 +383,11 @@ export default function Panel() {
   }, []);
 
   const handleMockDataChange = useCallback(
-    (operationName: string, mockData: string, fileInfo?: { fileName: string; fileSize: number }) => {
+    (
+      operationName: string,
+      mockData: string,
+      fileInfo?: { fileName: string; fileSize: number }
+    ) => {
       setMockDataMap((prev) => ({
         ...prev,
         [operationName]: mockData,
@@ -445,19 +449,26 @@ export default function Panel() {
     <div className="flex flex-col h-screen bg-[#1a1a2e] text-gray-100">
       {/* Header */}
       <header className="flex items-center justify-between px-3 py-2 bg-[#16162a] border-b border-[#2d2d4a]">
-        <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold text-white flex items-center gap-1.5">
-            <span>Leonardo.Ai</span>
-            <span className="opacity-50 font-normal">Developer Tools</span>
+        <div className="flex items-center gap-4">
+          <h1 className="text-base font-semibold text-white flex items-center gap-2">
+            <Logo className="size-6" />
+            <div>
+              Leonardo.<span className="text-purple-400">Ai</span>
+            </div>
           </h1>
+          <div className="opacity-50 font-normal text-base">
+            Developer Tools
+          </div>
           <span
             className={`px-2 py-0.5 text-xs rounded-full ${
               state.isConnected
                 ? "bg-green-500/20 text-green-400"
-                : "bg-yellow-500/20 text-yellow-400"
+                : "bg-gray-500/20 text-gray-400 animate-pulse"
             }`}
           >
-            {state.isConnected ? "Connected" : "Waiting for Apollo Client..."}
+            {state.isConnected
+              ? "Apollo client connected"
+              : "Waiting for Apollo client..."}
           </span>
         </div>
         <button
@@ -518,12 +529,17 @@ export default function Panel() {
                 <OperationDetail
                   operation={selectedOperation}
                   mockData={mockDataMap[selectedOperation.operationName] || ""}
-                  mockFileInfo={mockFileInfoMap[selectedOperation.operationName]}
+                  mockFileInfo={
+                    mockFileInfoMap[selectedOperation.operationName]
+                  }
                   onMockDataChange={handleMockDataChange}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500">
-                  Select an operation to view details
+                  <div className="flex flex-col items-center gap-3">
+                    <Logo className="size-16 text-white/15" />
+                    Select an operation to view details
+                  </div>
                 </div>
               )}
             </div>
