@@ -1,7 +1,9 @@
-import Browser from 'webextension-polyfill';
-
-Browser
-  .devtools
-  .panels
-  .create('Dev Tools', 'icon-32.png', 'src/pages/devtools/index.html')
-  .catch(console.error);
+// Create the Leonardo.Ai DevTools panel
+chrome.devtools.panels.create(
+  "Leonardo.Ai",
+  "icon-32.png",
+  "src/pages/panel/index.html",
+  () => {
+    console.log("[Leonardo.Ai] DevTools panel created");
+  }
+);
