@@ -5,6 +5,7 @@ interface EditableJsonTreeProps {
   data: unknown;
   onEdit?: (updatedData: unknown) => void;
   readOnly?: boolean;
+  collapsed?: number | boolean;
 }
 
 // Custom theme matching the existing JsonTree color scheme
@@ -33,6 +34,7 @@ export function EditableJsonTree({
   data,
   onEdit,
   readOnly = false,
+  collapsed = 2,
 }: EditableJsonTreeProps) {
   const handleChange = (interaction: InteractionProps) => {
     onEdit?.(interaction.updated_src);
@@ -44,7 +46,7 @@ export function EditableJsonTree({
         src={data as object}
         theme={theme}
         name={false}
-        collapsed={2}
+        collapsed={collapsed}
         collapseStringsAfterLength={100}
         displayDataTypes={false}
         displayObjectSize={false}

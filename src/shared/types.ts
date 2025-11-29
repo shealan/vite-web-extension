@@ -21,6 +21,7 @@ export interface GraphQLOperation {
   cachedData?: unknown; // The merged/paginated cached data from Apollo Client
   request?: RequestInfo; // The HTTP request info for debugging
   response?: ResponseInfo; // The HTTP response info for debugging
+  options?: QueryOptions | null; // Apollo query options/policy
   error?: string;
   timestamp: number;
   duration?: number;
@@ -52,6 +53,16 @@ export interface ExtensionMessage {
 // RPC types for internal use
 export type RpcMethod = 'getQueries' | 'getMutations' | 'getCache' | 'getClientInfo' | 'setMockData' | 'getMockData' | 'clearAllMocks';
 
+// Apollo query options/policy
+export interface QueryOptions {
+  fetchPolicy?: string | null;
+  errorPolicy?: string | null;
+  notifyOnNetworkStatusChange?: boolean;
+  returnPartialData?: boolean;
+  partialRefetch?: boolean;
+  canonizeResults?: boolean | null;
+}
+
 // Raw query data from Apollo Client (used internally)
 export interface RawWatchedQuery {
   id: string;
@@ -65,6 +76,7 @@ export interface RawWatchedQuery {
   lastResponseInfo?: ResponseInfo; // HTTP response info for debugging
   networkStatus: number;
   pollInterval?: number | null;
+  options?: QueryOptions | null; // Apollo query options/policy
 }
 
 // Raw mutation data from Apollo Client (used internally)

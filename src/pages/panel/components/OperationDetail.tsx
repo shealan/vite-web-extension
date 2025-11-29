@@ -57,9 +57,10 @@ interface OperationDetailProps {
     mockData: string,
     fileInfo?: MockFileInfo
   ) => void;
+  autoExpandJson?: boolean;
 }
 
-type LeftTab = "request" | "query" | "variables";
+type LeftTab = "request" | "query" | "variables" | "policy";
 type RightTab = "response" | "result" | "cache" | "mock";
 
 export function OperationDetail({
@@ -67,7 +68,10 @@ export function OperationDetail({
   mockData = "",
   mockFileInfo,
   onMockDataChange,
+  autoExpandJson = false,
 }: OperationDetailProps) {
+  // When autoExpandJson is true, set collapsed to false to expand all nodes
+  const jsonCollapsed = autoExpandJson ? false : 2;
   const [leftTab, setLeftTab] = useState<LeftTab>("request");
   const [rightTab, setRightTab] = useState<RightTab>("response");
   const [mockError, setMockError] = useState<string | null>(null);
@@ -82,6 +86,7 @@ export function OperationDetail({
     { id: "request", label: "Request" },
     { id: "query", label: "Query" },
     { id: "variables", label: "Variables" },
+    { id: "policy", label: "Policy" },
   ];
 
   const rightTabs: { id: RightTab; label: string }[] = [
@@ -383,7 +388,7 @@ export function OperationDetail({
                         (() => {
                           try {
                             const parsed = JSON.parse(operation.request.body);
-                            return <EditableJsonTree data={parsed} readOnly />;
+                            return <EditableJsonTree data={parsed} readOnly collapsed={jsonCollapsed} />;
                           } catch {
                             return (
                               <div className="bg-[#2d2d4a] rounded p-3">
@@ -423,7 +428,7 @@ export function OperationDetail({
                 <div className="json-tree w-full">
                   {operation.variables &&
                   Object.keys(operation.variables).length > 0 ? (
-                    <EditableJsonTree data={operation.variables} readOnly />
+                    <EditableJsonTree data={operation.variables} readOnly collapsed={jsonCollapsed} />
                   ) : (
                     <span className="text-gray-500">No variables</span>
                   )}
@@ -435,6 +440,104 @@ export function OperationDetail({
                     </div>
                   )}
               </>
+            )}
+
+            {leftTab === "policy" && (
+              <div className="space-y-2 text-xs font-mono">
+                {operation.options ? (
+                  <>
+                    {/* fetchPolicy */}
+                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                      <span className="text-gray-400">fetchPolicy</span>
+                      <span className="text-purple-400 ">
+                        {operation.options.fetchPolicy
+                          ? `"${operation.options.fetchPolicy}"`
+                          : "null"}
+                      </span>
+                    </div>
+
+                    {/* errorPolicy */}
+                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                      <span className="text-gray-400">errorPolicy</span>
+                      <span className="text-purple-400">
+                        {operation.options.errorPolicy
+                          ? `"${operation.options.errorPolicy}"`
+                          : "null"}
+                      </span>
+                    </div>
+
+                    {/* notifyOnNetworkStatusChange */}
+                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                      <span className="text-gray-400">
+                        notifyOnNetworkStatusChange
+                      </span>
+                      <span
+                        className={`${
+                          operation.options.notifyOnNetworkStatusChange
+                            ? "text-green-400"
+                            : "text-orange-400"
+                        }`}
+                      >
+                        {operation.options.notifyOnNetworkStatusChange
+                          ? "true"
+                          : "false"}
+                      </span>
+                    </div>
+
+                    {/* returnPartialData */}
+                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                      <span className="text-gray-400">returnPartialData</span>
+                      <span
+                        className={`${
+                          operation.options.returnPartialData
+                            ? "text-green-400"
+                            : "text-orange-400"
+                        }`}
+                      >
+                        {operation.options.returnPartialData ? "true" : "false"}
+                      </span>
+                    </div>
+
+                    {/* partialRefetch */}
+                    <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                      <span className="text-gray-400">partialRefetch</span>
+                      <span
+                        className={`${
+                          operation.options.partialRefetch
+                            ? "text-green-400"
+                            : "text-orange-400"
+                        }`}
+                      >
+                        {operation.options.partialRefetch ? "true" : "false"}
+                      </span>
+                    </div>
+
+                    {/* canonizeResults */}
+                    {operation.options.canonizeResults !== null && (
+                      <div className="flex items-center justify-between py-2 border-b border-[#2d2d4a]">
+                        <span className="text-gray-400">canonizeResults</span>
+                        <span
+                          className={`${
+                            operation.options.canonizeResults
+                              ? "text-green-400"
+                              : "text-orange-400"
+                          }`}
+                        >
+                          {operation.options.canonizeResults ? "true" : "false"}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-gray-500">
+                    <p>No policy options available.</p>
+                    <p className="mt-2 text-xs">
+                      Policy options are only available for queries. Mutations
+                      do not have these options.
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -504,7 +607,7 @@ export function OperationDetail({
                         {displayResult && <CopyButton data={displayResult} />}
                       </div>
                       {displayResult ? (
-                        <EditableJsonTree data={displayResult} readOnly />
+                        <EditableJsonTree data={displayResult} readOnly collapsed={jsonCollapsed} />
                       ) : (
                         <div className="bg-[#2d2d4a] rounded p-3">
                           <span className="text-gray-500 text-xs">No body</span>
@@ -575,7 +678,7 @@ export function OperationDetail({
                       <span>Loading...</span>
                     </div>
                   ) : displayResult ? (
-                    <EditableJsonTree data={displayResult} readOnly />
+                    <EditableJsonTree data={displayResult} readOnly collapsed={jsonCollapsed} />
                   ) : (
                     <span className="text-gray-500">No result</span>
                   )}
@@ -592,7 +695,7 @@ export function OperationDetail({
               <>
                 <div className="json-tree w-full">
                   {operationCache ? (
-                    <EditableJsonTree data={operationCache} readOnly />
+                    <EditableJsonTree data={operationCache} readOnly collapsed={jsonCollapsed} />
                   ) : (
                     <div className="text-gray-500">
                       <p>No cached data available for this operation.</p>
@@ -658,8 +761,8 @@ export function OperationDetail({
                       }`}
                     >
                       {isDragOver
-                        ? "Drop mock result file here"
-                        : "Select a mock result file"}
+                        ? "Drop mock result data file"
+                        : "Select mock result data file"}
                     </span>
                     <span className="text-xs text-gray-600 mt-1">
                       .json or .js files
@@ -747,6 +850,7 @@ export function OperationDetail({
                       <EditableJsonTree
                         data={parsedMockData}
                         onEdit={handleJsonEdit}
+                        collapsed={jsonCollapsed}
                       />
                     </div>
 

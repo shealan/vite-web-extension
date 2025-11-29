@@ -1,4 +1,4 @@
-// Apollo Lite DevTools - Injected Script
+// Leonardo.Ai DevTools - Injected Script
 // This runs in the page context to access Apollo Client internals
 // Uses RPC for polling + fetch interception for capturing actual responses
 (function () {
@@ -24,7 +24,7 @@
       // Wait for body to exist
       if (!document.body) {
         console.log(
-          "[Apollo Lite] Toast: document.body not ready, deferring init"
+          "[Leonardo.Ai] Toast: document.body not ready, deferring init"
         );
         return false;
       }
@@ -45,7 +45,7 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       `;
       document.body.appendChild(this.element);
-      console.log("[Apollo Lite] Toast container initialized");
+      console.log("[Leonardo.Ai] Toast container initialized");
       return true;
     },
 
@@ -63,13 +63,13 @@
       // If container couldn't be initialized, skip showing toast
       if (!this.element) {
         console.log(
-          "[Apollo Lite] Toast: Cannot show toast, container not ready"
+          "[Leonardo.Ai] Toast: Cannot show toast, container not ready"
         );
         return;
       }
 
       console.log(
-        "[Apollo Lite] Showing toast for:",
+        "[Leonardo.Ai] Showing toast for:",
         operationName,
         "isJsMock:",
         isJsMock
@@ -246,7 +246,7 @@
 
       return parts.join("\n\n");
     } catch (e) {
-      console.error("[Apollo Lite] Failed to print GraphQL:", e);
+      console.error("[Leonardo.Ai] Failed to print GraphQL:", e);
       return "";
     }
   }
@@ -382,7 +382,7 @@
       }
       return null;
     } catch (e) {
-      console.error("[Apollo Lite] Failed to extract cache:", e);
+      console.error("[Leonardo.Ai] Failed to extract cache:", e);
       return null;
     }
   }
@@ -471,6 +471,19 @@
             // Get last captured response for this operation
             const lastResponse = lastResponses.get(operationName);
 
+            // Extract policy options from the observable query
+            let options = null;
+            if (oq.options) {
+              options = {
+                fetchPolicy: oq.options.fetchPolicy || null,
+                errorPolicy: oq.options.errorPolicy || null,
+                notifyOnNetworkStatusChange: oq.options.notifyOnNetworkStatusChange || false,
+                returnPartialData: oq.options.returnPartialData || false,
+                partialRefetch: oq.options.partialRefetch || false,
+                canonizeResults: oq.options.canonizeResults !== undefined ? oq.options.canonizeResults : null,
+              };
+            }
+
             queries.push({
               id: queryId,
               operationName: operationName,
@@ -488,14 +501,16 @@
               lastResponseInfo: lastResponse ? lastResponse.response : null,
               networkStatus: networkStatus,
               pollInterval: pollInterval,
+              // Include policy options
+              options: options,
             });
           } catch (e) {
-            console.error("[Apollo Lite] Error processing query:", e);
+            console.error("[Leonardo.Ai] Error processing query:", e);
           }
         });
       }
     } catch (e) {
-      console.error("[Apollo Lite] Failed to get queries:", e);
+      console.error("[Leonardo.Ai] Failed to get queries:", e);
     }
 
     return queries;
@@ -556,7 +571,7 @@
         });
       }
     } catch (e) {
-      console.error("[Apollo Lite] Failed to get mutations:", e);
+      console.error("[Leonardo.Ai] Failed to get mutations:", e);
     }
 
     return mutations;
@@ -690,13 +705,13 @@
           );
           mockData = mockFn(variables, operationName, mockRequest);
           console.log(
-            "[Apollo Lite] Executed JS mock for:",
+            "[Leonardo.Ai] Executed JS mock for:",
             operationName,
             mockData
           );
         } catch (e) {
           console.error(
-            "[Apollo Lite] JS mock execution error for:",
+            "[Leonardo.Ai] JS mock execution error for:",
             operationName,
             e
           );
@@ -707,18 +722,18 @@
         // Regular JSON mock
         mockData = mockConfig;
         console.log(
-          "[Apollo Lite] Returning JSON mock for:",
+          "[Leonardo.Ai] Returning JSON mock for:",
           operationName,
           mockData
         );
       }
 
       // Show toast notification
-      console.log("[Apollo Lite] About to show toast for:", operationName);
+      console.log("[Leonardo.Ai] About to show toast for:", operationName);
       try {
         toastContainer.show(operationName, isJsMock);
       } catch (e) {
-        console.error("[Apollo Lite] Toast error:", e);
+        console.error("[Leonardo.Ai] Toast error:", e);
       }
 
       // Store the mock as the last response
@@ -816,10 +831,10 @@
       }
       if (params.mockData) {
         mockOverrides.set(params.operationName, params.mockData);
-        console.log("[Apollo Lite] Mock set for:", params.operationName);
+        console.log("[Leonardo.Ai] Mock set for:", params.operationName);
       } else {
         mockOverrides.delete(params.operationName);
-        console.log("[Apollo Lite] Mock cleared for:", params.operationName);
+        console.log("[Leonardo.Ai] Mock cleared for:", params.operationName);
       }
       return {
         success: true,
@@ -836,7 +851,7 @@
     },
     clearAllMocks: function () {
       mockOverrides.clear();
-      console.log("[Apollo Lite] All mocks cleared");
+      console.log("[Leonardo.Ai] All mocks cleared");
       return { success: true };
     },
   };
@@ -898,7 +913,7 @@
   function checkForApolloClient() {
     const client = getApolloClient();
     if (client) {
-      console.log("[Apollo Lite] Apollo Client found!", client);
+      console.log("[Leonardo.Ai] Apollo Client found!", client);
       postMessage("APOLLO_CLIENT_DETECTED", {
         version: client.version || "unknown",
         hasCache: !!client.cache,
@@ -917,7 +932,7 @@
         return _apolloClient;
       },
       set: function (client) {
-        console.log("[Apollo Lite] __APOLLO_CLIENT__ was set!", client);
+        console.log("[Leonardo.Ai] __APOLLO_CLIENT__ was set!", client);
         _apolloClient = client;
         if (client) {
           postMessage("APOLLO_CLIENT_DETECTED", {
@@ -929,7 +944,7 @@
       configurable: true,
     });
   } catch (e) {
-    console.log("[Apollo Lite] Could not set up property watcher:", e);
+    console.log("[Leonardo.Ai] Could not set up property watcher:", e);
   }
 
   // Check for Apollo Client on load and periodically
@@ -942,7 +957,7 @@
       if (checkForApolloClient() || retries >= maxRetries) {
         clearInterval(interval);
         if (retries >= maxRetries && !getApolloClient()) {
-          console.log("[Apollo Lite] Apollo Client not found after retries");
+          console.log("[Leonardo.Ai] Apollo Client not found after retries");
           postMessage("APOLLO_CLIENT_NOT_FOUND", {});
         }
       }
@@ -950,6 +965,6 @@
   }
 
   console.log(
-    "[Apollo Lite] Injected script loaded - RPC handlers ready, fetch intercepted"
+    "[Leonardo.Ai] Injected script loaded - RPC handlers ready, fetch intercepted"
   );
 })();

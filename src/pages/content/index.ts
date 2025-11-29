@@ -75,4 +75,4 @@ function setupMessageRelay() {
 injectScript();
 setupMessageRelay();
 
-console.log('[Apollo Lite] Content script loaded');
+console.log('[Leonardo.Ai] Content script loaded');

@@ -21,11 +21,20 @@ interface MockFileInfo {
   fileSize: number;
 }
 
+interface Settings {
+  autoExpandJson: boolean;
+}
+
 interface PersistedState {
   mockDataMap: Record<string, string>;
   mockFileInfoMap: Record<string, MockFileInfo>;
   activeTab: TabType;
+  settings?: Settings;
 }
+
+const defaultSettings: Settings = {
+  autoExpandJson: false,
+};
 
 interface ApolloState {
   isConnected: boolean;
@@ -120,6 +129,7 @@ function convertToOperations(
       cachedData: q.cachedData,
       request: q.lastRequest,
       response: q.lastResponseInfo,
+      options: q.options,
       timestamp: q.lastResponseTimestamp ?? Date.now(),
       status: q.networkStatus === 1 ? "loading" : "success",
     });
@@ -189,6 +199,8 @@ export default function Panel() {
   const [mockFileInfoMap, setMockFileInfoMap] = useState<
     Record<string, MockFileInfo>
   >({});
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
   const portRef = useRef<chrome.runtime.Port | null>(null);
@@ -226,6 +238,7 @@ export default function Panel() {
         setActiveTab(persisted.activeTab);
         setMockDataMap(persisted.mockDataMap);
         setMockFileInfoMap(persisted.mockFileInfoMap || {});
+        setSettings(persisted.settings || defaultSettings);
         console.log("[Leonardo.Ai] Loaded persisted state:", persisted);
       }
       setIsInitialized(true);
@@ -240,8 +253,9 @@ export default function Panel() {
       mockDataMap,
       mockFileInfoMap,
       activeTab,
+      settings,
     });
-  }, [mockDataMap, mockFileInfoMap, activeTab, isInitialized]);
+  }, [mockDataMap, mockFileInfoMap, activeTab, settings, isInitialized]);
 
   // Fetch data via RPC and convert to operations
   const fetchData = useCallback(async () => {
@@ -451,7 +465,7 @@ export default function Panel() {
       <header className="flex items-center justify-between px-3 py-2 bg-[#16162a] border-b border-[#2d2d4a]">
         <div className="flex items-center gap-4">
           <h1 className="text-base font-semibold text-white flex items-center gap-2">
-            <Logo className="size-6" />
+            <img src="/icon-128.png" alt="Leonardo.Ai" className="size-6" />
             <div>
               Leonardo.<span className="text-purple-400">Ai</span>
             </div>
@@ -471,13 +485,110 @@ export default function Panel() {
               : "Waiting for Apollo client..."}
           </span>
         </div>
-        <button
-          onClick={clearOperations}
-          className="px-3 py-1 text-xs bg-[#2d2d4a] hover:bg-[#3d3d5c] rounded transition-colors"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={clearOperations}
+            className="p-2 hover:bg-[#2d2d4a] rounded transition-colors"
+            title="Clear operations"
+          >
+            <svg
+              className="size-4 text-gray-400 hover:text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 hover:bg-[#2d2d4a] rounded transition-colors"
+            title="Settings"
+          >
+            <svg
+              className="size-4 text-gray-400 hover:text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </button>
+        </div>
       </header>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setIsSettingsOpen(false)}
+          />
+          <div className="relative bg-[#1a1a2e] border border-[#2d2d4a] rounded-lg shadow-xl w-96 max-w-[90vw]">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[#2d2d4a]">
+              <h2 className="text-sm font-semibold text-white">Settings</h2>
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="p-1 hover:bg-[#2d2d4a] rounded transition-colors"
+              >
+                <svg
+                  className="w-4 h-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="p-3 space-y-3">
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-xs text-gray-300">Auto expand JSON</span>
+                <button
+                  onClick={() =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      autoExpandJson: !prev.autoExpandJson,
+                    }))
+                  }
+                  className={`relative w-10 h-5 rounded-full transition-colors ${
+                    settings.autoExpandJson ? "bg-purple-500" : "bg-[#3d3d5c]"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                      settings.autoExpandJson
+                        ? "translate-x-5"
+                        : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <nav className="flex border-b border-[#2d2d4a]">
@@ -533,6 +644,7 @@ export default function Panel() {
                     mockFileInfoMap[selectedOperation.operationName]
                   }
                   onMockDataChange={handleMockDataChange}
+                  autoExpandJson={settings.autoExpandJson}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500">
