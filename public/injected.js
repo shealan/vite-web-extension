@@ -9,6 +9,9 @@
   // Store last response for each operation (by operation name)
   const lastResponses = new Map();
 
+  // Store mock data overrides for operations (by operation name)
+  const mockOverrides = new Map();
+
   function postMessage(type, payload) {
     window.postMessage({ source: SOURCE, type, payload }, '*');
   }
@@ -276,6 +279,8 @@
               // Include the last actual network response
               lastResponse: lastResponse ? lastResponse.data : null,
               lastResponseTimestamp: lastResponse ? lastResponse.timestamp : null,
+              // Include request info for debugging
+              lastRequest: lastResponse ? lastResponse.request : null,
               networkStatus: networkStatus,
               pollInterval: pollInterval,
             });
@@ -337,6 +342,8 @@
             error: mutation.error ? serializeError(mutation.error) : null,
             lastResponse: lastResponse ? lastResponse.data : null,
             lastResponseTimestamp: lastResponse ? lastResponse.timestamp : null,
+            // Include request info for debugging
+            lastRequest: lastResponse ? lastResponse.request : null,
           });
         });
       }
@@ -361,7 +368,40 @@
     };
   }
 
-  // Intercept fetch to capture GraphQL responses
+  // Helper to extract headers from various formats
+  function extractHeaders(init, input) {
+    const headers = {};
+
+    // Get headers from init object
+    if (init && init.headers) {
+      if (init.headers instanceof Headers) {
+        init.headers.forEach(function(value, key) {
+          headers[key] = value;
+        });
+      } else if (Array.isArray(init.headers)) {
+        init.headers.forEach(function(pair) {
+          headers[pair[0]] = pair[1];
+        });
+      } else if (typeof init.headers === 'object') {
+        Object.keys(init.headers).forEach(function(key) {
+          headers[key] = init.headers[key];
+        });
+      }
+    }
+
+    // Also check if input is a Request object with headers
+    if (input instanceof Request) {
+      input.headers.forEach(function(value, key) {
+        if (!headers[key]) {
+          headers[key] = value;
+        }
+      });
+    }
+
+    return headers;
+  }
+
+  // Intercept fetch to capture GraphQL responses and apply mock overrides
   const originalFetch = window.fetch;
   window.fetch = function(input, init) {
     const url = typeof input === 'string' ? input : input.url;
@@ -378,9 +418,11 @@
     let operationName = null;
     let queryString = null;
     let variables = null;
+    let requestBody = null;
 
     try {
       if (init && init.body) {
+        requestBody = init.body;
         const body = JSON.parse(init.body);
         operationName = body.operationName;
         queryString = body.query;
@@ -388,6 +430,38 @@
       }
     } catch (e) {
       // Not JSON, ignore
+    }
+
+    // Capture request info
+    const requestInfo = {
+      url: url,
+      method: (init && init.method) || 'POST',
+      headers: extractHeaders(init, input),
+      body: requestBody,
+    };
+
+    // Check if we have a mock override for this operation
+    if (operationName && mockOverrides.has(operationName)) {
+      const mockData = mockOverrides.get(operationName);
+      console.log('[Apollo Lite] Returning mock data for:', operationName, mockData);
+
+      // Store the mock as the last response
+      lastResponses.set(operationName, {
+        data: mockData,
+        timestamp: Date.now(),
+        variables: variables,
+        isMocked: true,
+        request: requestInfo,
+      });
+
+      // Return a fake Response with the mock data
+      return Promise.resolve(new Response(JSON.stringify(mockData), {
+        status: 200,
+        statusText: 'OK',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }));
     }
 
     return originalFetch.apply(this, arguments).then(function(response) {
@@ -401,6 +475,7 @@
             data: data,
             timestamp: Date.now(),
             variables: variables,
+            request: requestInfo,
           });
 
           // Keep map size bounded
@@ -436,6 +511,31 @@
         queryCount: getQueries().length,
         mutationCount: getMutations().length,
       };
+    },
+    setMockData: function(params) {
+      if (!params || !params.operationName) {
+        return { success: false, error: 'operationName is required' };
+      }
+      if (params.mockData) {
+        mockOverrides.set(params.operationName, params.mockData);
+        console.log('[Apollo Lite] Mock set for:', params.operationName);
+      } else {
+        mockOverrides.delete(params.operationName);
+        console.log('[Apollo Lite] Mock cleared for:', params.operationName);
+      }
+      return { success: true, operationName: params.operationName, hasMock: mockOverrides.has(params.operationName) };
+    },
+    getMockData: function() {
+      const mocks = {};
+      mockOverrides.forEach(function(value, key) {
+        mocks[key] = value;
+      });
+      return mocks;
+    },
+    clearAllMocks: function() {
+      mockOverrides.clear();
+      console.log('[Apollo Lite] All mocks cleared');
+      return { success: true };
     },
   };
 

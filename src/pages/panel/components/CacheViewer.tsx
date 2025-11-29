@@ -11,9 +11,20 @@ export function CacheViewer({ cache }: CacheViewerProps) {
 
   const cacheKeys = useMemo(() => {
     if (!cache) return [];
-    return Object.keys(cache).filter((key) =>
+    const keys = Object.keys(cache).filter((key) =>
       key.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Keep ROOT_QUERY at the top unless there's a search query
+    if (!searchQuery) {
+      const rootQueryIndex = keys.indexOf('ROOT_QUERY');
+      if (rootQueryIndex > 0) {
+        keys.splice(rootQueryIndex, 1);
+        keys.unshift('ROOT_QUERY');
+      }
+    }
+
+    return keys;
   }, [cache, searchQuery]);
 
   if (!cache) {

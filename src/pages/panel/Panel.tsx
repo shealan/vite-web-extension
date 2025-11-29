@@ -12,6 +12,14 @@ import { OperationDetail } from "./components/OperationDetail";
 
 type TabType = "queries" | "mutations" | "cache";
 
+// Storage key for persisted state
+const STORAGE_KEY = "leonardo-devtools-state";
+
+interface PersistedState {
+  mockDataMap: Record<string, string>;
+  activeTab: TabType;
+}
+
 interface ApolloState {
   isConnected: boolean;
   operations: GraphQLOperation[];
@@ -103,6 +111,7 @@ function convertToOperations(
       // Use lastResponse (actual network response) if available, otherwise fall back to cachedData
       result: q.lastResponse ?? q.cachedData,
       cachedData: q.cachedData,
+      request: q.lastRequest,
       timestamp: q.lastResponseTimestamp ?? Date.now(),
       status: q.networkStatus === 1 ? "loading" : "success",
     });
@@ -118,6 +127,7 @@ function convertToOperations(
       variables: m.variables,
       // Use lastResponse (actual network response) if available
       result: m.lastResponse,
+      request: m.lastRequest,
       error: m.error
         ? String((m.error as { message?: string })?.message || m.error)
         : undefined,
@@ -127,6 +137,32 @@ function convertToOperations(
   }
 
   return operations;
+}
+
+// Helper to load persisted state from chrome.storage.local
+async function loadPersistedState(): Promise<PersistedState | null> {
+  try {
+    if (!chrome?.storage?.local) {
+      console.warn("[Leonardo.Ai] chrome.storage.local not available");
+      return null;
+    }
+    const result = await chrome.storage.local.get(STORAGE_KEY);
+    return result[STORAGE_KEY] || null;
+  } catch (e) {
+    console.error("[Leonardo.Ai] Failed to load persisted state:", e);
+    return null;
+  }
+}
+
+// Helper to save state to chrome.storage.local
+function savePersistedState(state: PersistedState): void {
+  if (!chrome?.storage?.local) {
+    console.warn("[Leonardo.Ai] chrome.storage.local not available");
+    return;
+  }
+  chrome.storage.local.set({ [STORAGE_KEY]: state }).catch((e) => {
+    console.error("[Leonardo.Ai] Failed to save persisted state:", e);
+  });
 }
 
 export default function Panel() {
@@ -139,6 +175,9 @@ export default function Panel() {
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(
     null
   );
+  // Mock data storage keyed by operation name
+  const [mockDataMap, setMockDataMap] = useState<Record<string, string>>({});
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const portRef = useRef<chrome.runtime.Port | null>(null);
   const rpcClientRef = useRef<ReturnType<typeof createRpcClient> | null>(null);
@@ -148,6 +187,50 @@ export default function Panel() {
   const selectedOperation = selectedOperationId
     ? state.operations.find((op) => op.id === selectedOperationId) || null
     : null;
+
+  // Re-apply all mocks to the injected script (used after page refresh)
+  const reapplyMocks = useCallback(
+    async (mocks: Record<string, string>) => {
+      if (!rpcClientRef.current) return;
+
+      for (const [operationName, mockDataStr] of Object.entries(mocks)) {
+        if (!mockDataStr.trim()) continue;
+        try {
+          const parsedMockData = JSON.parse(mockDataStr);
+          await rpcClientRef.current.request("setMockData", {
+            operationName,
+            mockData: parsedMockData,
+          });
+          console.log("[Leonardo.Ai] Re-applied mock for:", operationName);
+        } catch {
+          // Invalid JSON, skip
+        }
+      }
+    },
+    []
+  );
+
+  // Load persisted state on mount
+  useEffect(() => {
+    loadPersistedState().then((persisted) => {
+      if (persisted) {
+        setActiveTab(persisted.activeTab);
+        setMockDataMap(persisted.mockDataMap);
+        console.log("[Leonardo.Ai] Loaded persisted state:", persisted);
+      }
+      setIsInitialized(true);
+    });
+  }, []);
+
+  // Save state when it changes (after initialization)
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    savePersistedState({
+      mockDataMap,
+      activeTab,
+    });
+  }, [mockDataMap, activeTab, isInitialized]);
 
   // Fetch data via RPC and convert to operations
   const fetchData = useCallback(async () => {
@@ -160,14 +243,39 @@ export default function Panel() {
         rpcClientRef.current.request<Record<string, unknown>>("getCache"),
       ]);
 
-      const operations = convertToOperations(queries || [], mutations || []);
+      const newOperations = convertToOperations(queries || [], mutations || []);
 
-      setState((prev) => ({
-        ...prev,
-        isConnected: true,
-        operations,
-        cache: cache || null,
-      }));
+      setState((prev) => {
+        // Merge new operations with existing ones
+        // Update existing operations by operationName, add new ones
+        const operationsByName = new Map<string, GraphQLOperation>();
+
+        // First, add all existing operations
+        for (const op of prev.operations) {
+          operationsByName.set(op.operationName, op);
+        }
+
+        // Then update/add new operations (new data takes precedence)
+        for (const op of newOperations) {
+          const existing = operationsByName.get(op.operationName);
+          if (existing) {
+            // Update existing operation with new data but preserve id
+            operationsByName.set(op.operationName, {
+              ...op,
+              id: existing.id, // Keep stable id for selection
+            });
+          } else {
+            operationsByName.set(op.operationName, op);
+          }
+        }
+
+        return {
+          ...prev,
+          isConnected: true,
+          operations: Array.from(operationsByName.values()),
+          cache: cache || null,
+        };
+      });
     } catch (error) {
       console.error("[Leonardo.Ai] Failed to fetch data:", error);
       // Don't set isConnected to false on fetch error - might just be timing
@@ -214,6 +322,12 @@ export default function Panel() {
       switch (message.type) {
         case "APOLLO_CLIENT_DETECTED":
           setState((prev) => ({ ...prev, isConnected: true }));
+          // Re-apply mocks when Apollo Client is detected (after page load/refresh)
+          loadPersistedState().then((persisted) => {
+            if (persisted?.mockDataMap) {
+              reapplyMocks(persisted.mockDataMap);
+            }
+          });
           break;
 
         case "APOLLO_CLIENT_NOT_FOUND":
@@ -221,12 +335,12 @@ export default function Panel() {
           break;
 
         case "TAB_NAVIGATED":
-          setState({
+          // Keep operations but mark as potentially stale, reset connection
+          setState((prev) => ({
+            ...prev,
             isConnected: false,
-            operations: [],
             cache: null,
-          });
-          setSelectedOperationId(null);
+          }));
           break;
       }
     });
@@ -247,7 +361,7 @@ export default function Panel() {
       rpcClient.cleanup();
       port.disconnect();
     };
-  }, [startPolling, stopPolling]);
+  }, [startPolling, stopPolling, reapplyMocks]);
 
   const queries = state.operations.filter((op) => op.type === "query");
   const mutations = state.operations.filter((op) => op.type === "mutation");
@@ -256,6 +370,44 @@ export default function Panel() {
     setState((prev) => ({ ...prev, operations: [] }));
     setSelectedOperationId(null);
   }, []);
+
+  const handleMockDataChange = useCallback(
+    (operationName: string, mockData: string) => {
+      setMockDataMap((prev) => ({
+        ...prev,
+        [operationName]: mockData,
+      }));
+
+      // Send mock data to injected script to intercept future requests
+      if (rpcClientRef.current) {
+        let parsedMockData = null;
+        if (mockData.trim()) {
+          try {
+            parsedMockData = JSON.parse(mockData);
+          } catch {
+            // Invalid JSON, don't send to injected script
+            return;
+          }
+        }
+
+        rpcClientRef.current
+          .request("setMockData", {
+            operationName,
+            mockData: parsedMockData,
+          })
+          .then(() => {
+            console.log(
+              `[Leonardo.Ai] Mock ${parsedMockData ? "set" : "cleared"} for:`,
+              operationName
+            );
+          })
+          .catch((error) => {
+            console.error("[Leonardo.Ai] Failed to set mock data:", error);
+          });
+      }
+    },
+    []
+  );
 
   const tabs: { id: TabType; label: string; count?: number }[] = [
     { id: "queries", label: "Queries", count: queries.length },
@@ -268,7 +420,7 @@ export default function Panel() {
       {/* Header */}
       <header className="flex items-center justify-between px-3 py-2 bg-[#16162a] border-b border-[#2d2d4a]">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold text-white flex items-center gap-1">
+          <h1 className="text-base font-semibold text-white flex items-center gap-1.5">
             <span>Leonardo.Ai</span>
             <span className="opacity-50 font-normal">Developer Tools</span>
           </h1>
@@ -337,7 +489,11 @@ export default function Panel() {
             {/* Operation Detail */}
             <div className="flex-1 overflow-y-auto">
               {selectedOperation ? (
-                <OperationDetail operation={selectedOperation} />
+                <OperationDetail
+                  operation={selectedOperation}
+                  mockData={mockDataMap[selectedOperation.operationName] || ""}
+                  onMockDataChange={handleMockDataChange}
+                />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500">
                   Select an operation to view details

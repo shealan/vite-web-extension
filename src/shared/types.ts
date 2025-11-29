@@ -1,3 +1,10 @@
+export interface RequestInfo {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+}
+
 export interface GraphQLOperation {
   id: string;
   type: 'query' | 'mutation' | 'subscription';
@@ -6,6 +13,7 @@ export interface GraphQLOperation {
   variables?: Record<string, unknown>;
   result?: unknown;
   cachedData?: unknown; // The merged/paginated cached data from Apollo Client
+  request?: RequestInfo; // The HTTP request info for debugging
   error?: string;
   timestamp: number;
   duration?: number;
@@ -35,7 +43,7 @@ export interface ExtensionMessage {
 }
 
 // RPC types for internal use
-export type RpcMethod = 'getQueries' | 'getMutations' | 'getCache' | 'getClientInfo';
+export type RpcMethod = 'getQueries' | 'getMutations' | 'getCache' | 'getClientInfo' | 'setMockData' | 'getMockData' | 'clearAllMocks';
 
 // Raw query data from Apollo Client (used internally)
 export interface RawWatchedQuery {
@@ -46,6 +54,7 @@ export interface RawWatchedQuery {
   cachedData?: unknown;
   lastResponse?: unknown; // Actual network response captured from fetch
   lastResponseTimestamp?: number;
+  lastRequest?: RequestInfo; // HTTP request info for debugging
   networkStatus: number;
   pollInterval?: number | null;
 }
@@ -60,4 +69,5 @@ export interface RawMutation {
   error?: unknown;
   lastResponse?: unknown; // Actual network response captured from fetch
   lastResponseTimestamp?: number;
+  lastRequest?: RequestInfo; // HTTP request info for debugging
 }

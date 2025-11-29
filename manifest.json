@@ -6,7 +6,8 @@
     "128": "icon-128.png"
   },
   "permissions": [
-    "scripting"
+    "scripting",
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"

@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { GraphQLOperation } from '@src/shared/types';
+import React, { useState, useMemo } from "react";
+import { GraphQLOperation } from "@src/shared/types";
 
 interface OperationListProps {
   operations: GraphQLOperation[];
   selectedId?: string;
   onSelect: (operation: GraphQLOperation) => void;
-  operationType: 'queries' | 'mutations';
+  operationType: "queries" | "mutations";
 }
 
 function Spinner() {
@@ -33,8 +33,13 @@ function Spinner() {
   );
 }
 
-export function OperationList({ operations, selectedId, onSelect, operationType }: OperationListProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+export function OperationList({
+  operations,
+  selectedId,
+  onSelect,
+  operationType,
+}: OperationListProps) {
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredOperations = useMemo(() => {
     if (!searchQuery) return operations;
@@ -73,31 +78,33 @@ export function OperationList({ operations, selectedId, onSelect, operationType 
                 key={operation.id}
                 onClick={() => onSelect(operation)}
                 className={`w-full px-3 py-2 text-left hover:bg-[#2d2d4a]/50 transition-colors ${
-                  selectedId === operation.id ? 'bg-[#2d2d4a]' : ''
+                  selectedId === operation.id ? "bg-[#2d2d4a]" : ""
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-gray-200 truncate">
+                  <span className="text-sm font-medium text-gray-200 truncate font-mono">
                     {operation.operationName}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {operation.status === 'loading' && <Spinner />}
-                    {operation.status === 'error' && (
+                    {operation.status === "loading" && <Spinner />}
+                    {operation.status === "error" && (
                       <span className="px-1.5 py-0.5 text-xs bg-red-500/20 text-red-400 rounded">
                         Error
                       </span>
                     )}
-                    {operation.status === 'success' && (
+                    {operation.status === "success" && (
                       <span className="text-green-400 text-xs">✓</span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                   <span>{formatTime(operation.timestamp)}</span>
-                  {operation.status === 'loading' ? (
+                  {operation.status === "loading" ? (
                     <span className="text-purple-400">loading...</span>
                   ) : operation.duration ? (
-                    <span className="text-gray-400">{operation.duration}ms</span>
+                    <span className="text-gray-400">
+                      {operation.duration}ms
+                    </span>
                   ) : null}
                 </div>
               </button>
@@ -116,10 +123,10 @@ export function OperationList({ operations, selectedId, onSelect, operationType 
 
 function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
-  return date.toLocaleTimeString('en-US', {
+  return date.toLocaleTimeString("en-US", {
     hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 }
