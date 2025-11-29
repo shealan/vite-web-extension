@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import "@pages/panel/Panel.css";
-import { GraphQLOperation } from "@src/shared/types";
+import { GraphQLOperation, RpcMethod, RawWatchedQuery, RawMutation } from "@src/shared/types";
 import { OperationList } from "./components/OperationList";
 import { CacheViewer } from "./components/CacheViewer";
 import { OperationDetail } from "./components/OperationDetail";
@@ -11,6 +11,113 @@ interface ApolloState {
   isConnected: boolean;
   operations: GraphQLOperation[];
   cache: Record<string, unknown> | null;
+}
+
+// RPC client for communicating with injected script
+function createRpcClient(port: chrome.runtime.Port) {
+  const pendingRequests = new Map<
+    string,
+    { resolve: (value: unknown) => void; reject: (error: Error) => void }
+  >();
+
+  // Listen for RPC responses
+  const handleMessage = (message: {
+    type: string;
+    requestId?: string;
+    result?: unknown;
+    error?: string;
+  }) => {
+    if (message.type === "RPC_RESPONSE" && message.requestId) {
+      const pending = pendingRequests.get(message.requestId);
+      if (pending) {
+        pendingRequests.delete(message.requestId);
+        if (message.error) {
+          pending.reject(new Error(message.error));
+        } else {
+          pending.resolve(message.result);
+        }
+      }
+    }
+  };
+
+  port.onMessage.addListener(handleMessage);
+
+  return {
+    request: <T,>(method: RpcMethod, params?: unknown): Promise<T> => {
+      return new Promise((resolve, reject) => {
+        const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+        // Set timeout for request
+        const timeout = setTimeout(() => {
+          pendingRequests.delete(requestId);
+          reject(new Error("RPC request timeout"));
+        }, 5000);
+
+        pendingRequests.set(requestId, {
+          resolve: (value) => {
+            clearTimeout(timeout);
+            resolve(value as T);
+          },
+          reject: (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          },
+        });
+
+        port.postMessage({
+          type: "RPC_REQUEST",
+          method,
+          params,
+          requestId,
+        });
+      });
+    },
+    cleanup: () => {
+      port.onMessage.removeListener(handleMessage);
+    },
+  };
+}
+
+// Convert raw Apollo data to GraphQLOperation format
+function convertToOperations(
+  queries: RawWatchedQuery[],
+  mutations: RawMutation[]
+): GraphQLOperation[] {
+  const operations: GraphQLOperation[] = [];
+
+  // Convert queries
+  for (const q of queries) {
+    operations.push({
+      id: `query-${q.id}`,
+      type: "query",
+      operationName: q.operationName || "Unknown",
+      query: q.queryString || "",
+      variables: q.variables,
+      // Use lastResponse (actual network response) if available, otherwise fall back to cachedData
+      result: q.lastResponse ?? q.cachedData,
+      cachedData: q.cachedData,
+      timestamp: q.lastResponseTimestamp ?? Date.now(),
+      status: q.networkStatus === 1 ? "loading" : "success",
+    });
+  }
+
+  // Convert mutations
+  for (const m of mutations) {
+    operations.push({
+      id: `mutation-${m.id}`,
+      type: "mutation",
+      operationName: m.operationName || "Unknown",
+      query: m.mutationString || "",
+      variables: m.variables,
+      // Use lastResponse (actual network response) if available
+      result: m.lastResponse,
+      error: m.error ? String((m.error as { message?: string })?.message || m.error) : undefined,
+      timestamp: m.lastResponseTimestamp ?? Date.now(),
+      status: m.loading ? "loading" : m.error ? "error" : "success",
+    });
+  }
+
+  return operations;
 }
 
 export default function Panel() {
@@ -24,14 +131,68 @@ export default function Panel() {
     null
   );
 
+  const portRef = useRef<chrome.runtime.Port | null>(null);
+  const rpcClientRef = useRef<ReturnType<typeof createRpcClient> | null>(null);
+  const pollingIntervalRef = useRef<number | null>(null);
+
   // Derive selected operation from current operations list to stay reactive
   const selectedOperation = selectedOperationId
     ? state.operations.find((op) => op.id === selectedOperationId) || null
     : null;
 
+  // Fetch data via RPC and convert to operations
+  const fetchData = useCallback(async () => {
+    if (!rpcClientRef.current) return;
+
+    try {
+      const [queries, mutations, cache] = await Promise.all([
+        rpcClientRef.current.request<RawWatchedQuery[]>("getQueries"),
+        rpcClientRef.current.request<RawMutation[]>("getMutations"),
+        rpcClientRef.current.request<Record<string, unknown>>("getCache"),
+      ]);
+
+      const operations = convertToOperations(queries || [], mutations || []);
+
+      setState((prev) => ({
+        ...prev,
+        isConnected: true,
+        operations,
+        cache: cache || null,
+      }));
+    } catch (error) {
+      console.error("[Leonardo.Ai] Failed to fetch data:", error);
+      // Don't set isConnected to false on fetch error - might just be timing
+    }
+  }, []);
+
+  // Start/stop polling
+  const startPolling = useCallback(() => {
+    if (pollingIntervalRef.current) return;
+
+    // Fetch immediately
+    fetchData();
+
+    // Then poll every 500ms
+    pollingIntervalRef.current = window.setInterval(() => {
+      fetchData();
+    }, 500);
+  }, [fetchData]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     // Connect to background script
     const port = chrome.runtime.connect({ name: "apollo-lite-devtools" });
+    portRef.current = port;
+
+    // Create RPC client
+    const rpcClient = createRpcClient(port);
+    rpcClientRef.current = rpcClient;
 
     // Initialize with current tab ID
     port.postMessage({
@@ -39,7 +200,7 @@ export default function Panel() {
       tabId: chrome.devtools.inspectedWindow.tabId,
     });
 
-    // Listen for messages
+    // Listen for non-RPC messages
     port.onMessage.addListener((message) => {
       switch (message.type) {
         case "APOLLO_CLIENT_DETECTED":
@@ -48,104 +209,6 @@ export default function Panel() {
 
         case "APOLLO_CLIENT_NOT_FOUND":
           setState((prev) => ({ ...prev, isConnected: false }));
-          break;
-
-        case "GRAPHQL_OPERATION_START": {
-          const payload = message.payload as Partial<GraphQLOperation>;
-          setState((prev) => {
-            // Check if operation with same name exists
-            const existingIndex = prev.operations.findIndex(
-              (op) =>
-                op.operationName === payload.operationName &&
-                op.type === payload.type
-            );
-
-            if (existingIndex !== -1) {
-              // Update existing operation to loading state
-              const updated = [...prev.operations];
-              updated[existingIndex] = {
-                ...updated[existingIndex],
-                status: "loading",
-                timestamp: payload.timestamp || Date.now(),
-                variables: payload.variables,
-              };
-              return { ...prev, isConnected: true, operations: updated };
-            }
-
-            // Add new operation in loading state
-            const newOp: GraphQLOperation = {
-              id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-              type: payload.type || "query",
-              operationName: payload.operationName || "Unknown",
-              query: payload.query || "",
-              variables: payload.variables,
-              timestamp: payload.timestamp || Date.now(),
-              status: "loading",
-            };
-            return {
-              ...prev,
-              isConnected: true,
-              operations: [...prev.operations, newOp],
-            };
-          });
-          break;
-        }
-
-        case "GRAPHQL_OPERATION_COMPLETE": {
-          const payload = message.payload as Partial<GraphQLOperation>;
-          setState((prev) => {
-            // Find operation with same name to update
-            const existingIndex = prev.operations.findIndex(
-              (op) =>
-                op.operationName === payload.operationName &&
-                op.type === payload.type
-            );
-
-            if (existingIndex !== -1) {
-              // Update existing operation with result
-              const updated = [...prev.operations];
-              updated[existingIndex] = {
-                ...updated[existingIndex],
-                result: payload.result,
-                cachedData: payload.cachedData,
-                error: payload.error,
-                duration: payload.duration,
-                timestamp:
-                  payload.timestamp || updated[existingIndex].timestamp,
-                status: payload.status || (payload.error ? "error" : "success"),
-              };
-              return { ...prev, isConnected: true, operations: updated };
-            }
-
-            // If no existing operation found, add it as complete
-            const newOp: GraphQLOperation = {
-              id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-              type: payload.type || "query",
-              operationName: payload.operationName || "Unknown",
-              query: payload.query || "",
-              variables: payload.variables,
-              result: payload.result,
-              cachedData: payload.cachedData,
-              error: payload.error,
-              timestamp: payload.timestamp || Date.now(),
-              duration: payload.duration,
-              status: payload.status || (payload.error ? "error" : "success"),
-            };
-            return {
-              ...prev,
-              isConnected: true,
-              operations: [...prev.operations, newOp],
-            };
-          });
-          break;
-        }
-
-        case "CACHE_UPDATE":
-          setState((prev) => ({
-            ...prev,
-            isConnected: true,
-            cache: message.payload?.data || null,
-          }));
           break;
 
         case "TAB_NAVIGATED":
@@ -159,20 +222,23 @@ export default function Panel() {
       }
     });
 
-    // Request initial cache
-    port.postMessage({ type: "REQUEST_CACHE" });
+    // Start polling immediately
+    startPolling();
 
-    // Handle port disconnect (e.g., background script restart)
+    // Handle port disconnect
     port.onDisconnect.addListener(() => {
       console.log(
         "[Leonardo.Ai] Port disconnected, will reconnect on next render"
       );
+      stopPolling();
     });
 
     return () => {
+      stopPolling();
+      rpcClient.cleanup();
       port.disconnect();
     };
-  }, []);
+  }, [startPolling, stopPolling]);
 
   const queries = state.operations.filter((op) => op.type === "query");
   const mutations = state.operations.filter((op) => op.type === "mutation");

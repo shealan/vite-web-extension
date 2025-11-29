@@ -8,7 +8,7 @@ interface DevToolsConnection {
 const devtoolsConnections = new Map<number, DevToolsConnection>();
 const tabData = new Map<
   number,
-  { apolloDetected: boolean; operations: unknown[]; cache: unknown }
+  { apolloDetected: boolean; cache: unknown }
 >();
 
 // Handle connections from DevTools panels
@@ -19,7 +19,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
   port.onMessage.addListener((message) => {
     if (message.type === "INIT") {
-      tabId = message.tabId;
+      tabId = message.tabId as number;
       devtoolsConnections.set(tabId, { port, tabId });
 
       // Send any cached data for this tab
@@ -27,11 +27,6 @@ chrome.runtime.onConnect.addListener((port) => {
       if (data) {
         if (data.apolloDetected) {
           port.postMessage({ type: "APOLLO_CLIENT_DETECTED" });
-        }
-        if (data.operations?.length) {
-          data.operations.forEach((op) => {
-            port.postMessage({ type: "GRAPHQL_OPERATION", payload: op });
-          });
         }
         if (data.cache) {
           port.postMessage({ type: "CACHE_UPDATE", payload: data.cache });
@@ -41,8 +36,40 @@ chrome.runtime.onConnect.addListener((port) => {
       console.log(`[Leonardo.Ai] DevTools connected for tab ${tabId}`);
     }
 
+    // Handle RPC requests from panel
+    if (message.type === "RPC_REQUEST" && tabId !== null) {
+      const requestId = message.requestId || Date.now().toString();
+
+      // Forward RPC request to content script and wait for response
+      chrome.tabs
+        .sendMessage(tabId, {
+          source: "apollo-lite-devtools-background",
+          type: "RPC_REQUEST",
+          method: message.method,
+          params: message.params,
+          requestId: requestId,
+        })
+        .then((response) => {
+          // Send response back to panel
+          port.postMessage({
+            type: "RPC_RESPONSE",
+            requestId: requestId,
+            result: response?.result,
+            error: response?.error,
+          });
+        })
+        .catch((error) => {
+          // Send error back to panel
+          port.postMessage({
+            type: "RPC_RESPONSE",
+            requestId: requestId,
+            error: error.message || "Failed to communicate with page",
+          });
+        });
+    }
+
+    // Legacy: Forward cache request to content script
     if (message.type === "REQUEST_CACHE" && tabId !== null) {
-      // Forward to content script
       chrome.tabs
         .sendMessage(tabId, {
           source: "apollo-lite-devtools-background",
@@ -71,7 +98,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 
   // Initialize tab data if needed
   if (!tabData.has(tabId)) {
-    tabData.set(tabId, { apolloDetected: false, operations: [], cache: null });
+    tabData.set(tabId, { apolloDetected: false, cache: null });
   }
 
   const data = tabData.get(tabId)!;
@@ -79,12 +106,6 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   // Store data
   if (message.type === "APOLLO_CLIENT_DETECTED") {
     data.apolloDetected = true;
-  } else if (message.type === "GRAPHQL_OPERATION") {
-    data.operations.push(message.payload);
-    // Keep only last 100 operations
-    if (data.operations.length > 100) {
-      data.operations = data.operations.slice(-100);
-    }
   } else if (message.type === "CACHE_UPDATE") {
     data.cache = message.payload;
   }
@@ -132,7 +153,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       // Reset data for this tab on full navigation
       tabData.set(tabId, {
         apolloDetected: false,
-        operations: [],
         cache: null,
       });
 
