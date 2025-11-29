@@ -442,8 +442,28 @@
 
     // Check if we have a mock override for this operation
     if (operationName && mockOverrides.has(operationName)) {
-      const mockData = mockOverrides.get(operationName);
-      console.log('[Apollo Lite] Returning mock data for:', operationName, mockData);
+      const mockConfig = mockOverrides.get(operationName);
+      let mockData;
+
+      // Check if this is a JS mock (has __mockType and __mockScript)
+      if (mockConfig && mockConfig.__mockType === 'js' && mockConfig.__mockScript) {
+        try {
+          // Execute the JS script to get the mock data
+          // The script has access to: variables, operationName, requestInfo
+          // eslint-disable-next-line no-new-func
+          const mockFn = new Function('variables', 'operationName', 'request', mockConfig.__mockScript);
+          mockData = mockFn(variables, operationName, requestInfo);
+          console.log('[Apollo Lite] Executed JS mock for:', operationName, mockData);
+        } catch (e) {
+          console.error('[Apollo Lite] JS mock execution error for:', operationName, e);
+          // On error, fall through to real request
+          return originalFetch.apply(this, arguments);
+        }
+      } else {
+        // Regular JSON mock
+        mockData = mockConfig;
+        console.log('[Apollo Lite] Returning JSON mock for:', operationName, mockData);
+      }
 
       // Store the mock as the last response
       lastResponses.set(operationName, {

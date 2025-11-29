@@ -15,8 +15,14 @@ type TabType = "queries" | "mutations" | "cache";
 // Storage key for persisted state
 const STORAGE_KEY = "leonardo-devtools-state";
 
+interface MockFileInfo {
+  fileName: string;
+  fileSize: number;
+}
+
 interface PersistedState {
   mockDataMap: Record<string, string>;
+  mockFileInfoMap: Record<string, MockFileInfo>;
   activeTab: TabType;
 }
 
@@ -177,6 +183,7 @@ export default function Panel() {
   );
   // Mock data storage keyed by operation name
   const [mockDataMap, setMockDataMap] = useState<Record<string, string>>({});
+  const [mockFileInfoMap, setMockFileInfoMap] = useState<Record<string, MockFileInfo>>({});
   const [isInitialized, setIsInitialized] = useState(false);
 
   const portRef = useRef<chrome.runtime.Port | null>(null);
@@ -216,6 +223,7 @@ export default function Panel() {
       if (persisted) {
         setActiveTab(persisted.activeTab);
         setMockDataMap(persisted.mockDataMap);
+        setMockFileInfoMap(persisted.mockFileInfoMap || {});
         console.log("[Leonardo.Ai] Loaded persisted state:", persisted);
       }
       setIsInitialized(true);
@@ -228,9 +236,10 @@ export default function Panel() {
 
     savePersistedState({
       mockDataMap,
+      mockFileInfoMap,
       activeTab,
     });
-  }, [mockDataMap, activeTab, isInitialized]);
+  }, [mockDataMap, mockFileInfoMap, activeTab, isInitialized]);
 
   // Fetch data via RPC and convert to operations
   const fetchData = useCallback(async () => {
@@ -372,11 +381,26 @@ export default function Panel() {
   }, []);
 
   const handleMockDataChange = useCallback(
-    (operationName: string, mockData: string) => {
+    (operationName: string, mockData: string, fileInfo?: { fileName: string; fileSize: number }) => {
       setMockDataMap((prev) => ({
         ...prev,
         [operationName]: mockData,
       }));
+
+      // Update file info map
+      if (fileInfo) {
+        setMockFileInfoMap((prev) => ({
+          ...prev,
+          [operationName]: fileInfo,
+        }));
+      } else if (!mockData.trim()) {
+        // Clear file info when mock is cleared
+        setMockFileInfoMap((prev) => {
+          const newMap = { ...prev };
+          delete newMap[operationName];
+          return newMap;
+        });
+      }
 
       // Send mock data to injected script to intercept future requests
       if (rpcClientRef.current) {
@@ -492,6 +516,7 @@ export default function Panel() {
                 <OperationDetail
                   operation={selectedOperation}
                   mockData={mockDataMap[selectedOperation.operationName] || ""}
+                  mockFileInfo={mockFileInfoMap[selectedOperation.operationName]}
                   onMockDataChange={handleMockDataChange}
                 />
               ) : (

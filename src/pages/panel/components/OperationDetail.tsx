@@ -3,10 +3,16 @@ import { GraphQLOperation } from "@src/shared/types";
 import { JsonTree, CopyButton } from "./JsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
 
+interface MockFileInfo {
+  fileName: string;
+  fileSize: number;
+}
+
 interface OperationDetailProps {
   operation: GraphQLOperation;
   mockData?: string;
-  onMockDataChange?: (operationName: string, mockData: string) => void;
+  mockFileInfo?: MockFileInfo;
+  onMockDataChange?: (operationName: string, mockData: string, fileInfo?: MockFileInfo) => void;
 }
 
 type LeftTab = "request" | "query" | "variables" | "mock";
@@ -15,13 +21,17 @@ type RightTab = "result" | "cache";
 export function OperationDetail({
   operation,
   mockData = "",
+  mockFileInfo,
   onMockDataChange,
 }: OperationDetailProps) {
   const [leftTab, setLeftTab] = useState<LeftTab>("request");
   const [rightTab, setRightTab] = useState<RightTab>("result");
   const [mockError, setMockError] = useState<string | null>(null);
-  const [loadedFileName, setLoadedFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use persisted file info, or fall back to null
+  const displayFileName = mockFileInfo?.fileName ?? null;
+  const displayFileSize = mockFileInfo?.fileSize ?? null;
 
   const leftTabs: { id: LeftTab; label: string }[] = [
     { id: "request", label: "Request" },
@@ -35,19 +45,28 @@ export function OperationDetail({
     { id: "cache", label: "Cache" },
   ];
 
-  // Parse mock data if available
-  const parsedMockData = React.useMemo(() => {
-    if (!mockData.trim()) return null;
+  // Parse mock data if available - supports both JSON and JS mock formats
+  const { parsedMockData, mockType } = React.useMemo(() => {
+    if (!mockData.trim()) return { parsedMockData: null, mockType: null };
     try {
-      setMockError(null);
-      return JSON.parse(mockData);
+      const parsed = JSON.parse(mockData);
+      // Check if it's a JS mock wrapper
+      if (parsed.__mockType === "js" && typeof parsed.__mockScript === "string") {
+        return { parsedMockData: parsed, mockType: "js" as const };
+      }
+      // Regular JSON mock
+      return { parsedMockData: parsed, mockType: "json" as const };
     } catch {
-      return null;
+      return { parsedMockData: null, mockType: null };
     }
   }, [mockData]);
 
+  // For display, we show the actual mock data (not the wrapper for JS)
+  const hasMockData = parsedMockData !== null;
+
   // Use mock data if valid, otherwise use actual result
-  const displayResult = parsedMockData ?? operation.result;
+  // For JS mocks, we show the actual result since the mock is dynamic
+  const displayResult = (mockType === "json" ? parsedMockData : null) ?? operation.result;
 
   // Use cachedData from Apollo Client's queryInfo.getDiff() - this contains
   // the merged/paginated cached data directly from Apollo
@@ -206,13 +225,12 @@ export function OperationDetail({
               <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-gray-400">
-                    Select a JSON file to override the result
+                    Select a JSON or JS file to override the result
                   </span>
                   {mockData.trim() && (
                     <button
                       onClick={() => {
                         onMockDataChange?.(operation.operationName, "");
-                        setLoadedFileName(null);
                         setMockError(null);
                         if (fileInputRef.current) {
                           fileInputRef.current.value = "";
@@ -229,28 +247,46 @@ export function OperationDetail({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".json,application/json"
+                  accept=".json,.js,application/json,text/javascript"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
 
+                    const isJS = file.name.endsWith(".js");
                     const reader = new FileReader();
                     reader.onload = (event) => {
                       const content = event.target?.result as string;
-                      try {
-                        JSON.parse(content);
+
+                      if (isJS) {
+                        // Accept JS files - syntax validation happens at runtime in the page context
+                        // (Chrome extension CSP doesn't allow eval/new Function in extension pages)
                         setMockError(null);
-                        setLoadedFileName(file.name);
-                        onMockDataChange?.(operation.operationName, content);
-                      } catch {
-                        setMockError("Invalid JSON file");
-                        setLoadedFileName(null);
-                        onMockDataChange?.(operation.operationName, "");
+                        // Wrap JS in a special format so we can identify it
+                        const wrappedMock = JSON.stringify({
+                          __mockType: "js",
+                          __mockScript: content,
+                        });
+                        onMockDataChange?.(operation.operationName, wrappedMock, {
+                          fileName: file.name,
+                          fileSize: file.size,
+                        });
+                      } else {
+                        // Validate JSON
+                        try {
+                          JSON.parse(content);
+                          setMockError(null);
+                          onMockDataChange?.(operation.operationName, content, {
+                            fileName: file.name,
+                            fileSize: file.size,
+                          });
+                        } catch {
+                          setMockError("Invalid JSON file");
+                          onMockDataChange?.(operation.operationName, "");
+                        }
                       }
                     };
                     reader.onerror = () => {
                       setMockError("Failed to read file");
-                      setLoadedFileName(null);
                     };
                     reader.readAsText(file);
                   }}
@@ -258,52 +294,60 @@ export function OperationDetail({
                   id={`mock-file-${operation.id}`}
                 />
 
-                <label
-                  htmlFor={`mock-file-${operation.id}`}
-                  className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#3d3d5c] rounded-lg cursor-pointer hover:border-purple-500 hover:bg-[#2d2d4a]/50 transition-colors"
-                >
-                  <svg
-                    className="w-8 h-8 text-gray-500 mb-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                {/* File picker - only show when no mock is loaded */}
+                {!hasMockData && (
+                  <label
+                    htmlFor={`mock-file-${operation.id}`}
+                    className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#3d3d5c] rounded-lg cursor-pointer hover:border-purple-500 hover:bg-[#2d2d4a]/50 transition-colors"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                    />
-                  </svg>
-                  <span className="text-sm text-gray-400">
-                    Click to select a JSON file
-                  </span>
-                  <span className="text-xs text-gray-600 mt-1">
-                    .json files only
-                  </span>
-                </label>
+                    <svg
+                      className="w-8 h-8 text-gray-500 mb-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                      />
+                    </svg>
+                    <span className="text-sm text-gray-400">
+                      Click to select a mock file
+                    </span>
+                    <span className="text-xs text-gray-600 mt-1">
+                      .json or .js files
+                    </span>
+                  </label>
+                )}
 
                 {/* Status messages */}
                 {mockError && (
                   <p className="mt-3 text-xs text-red-400">{mockError}</p>
                 )}
-                {loadedFileName && parsedMockData && (
-                  <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded">
-                    <p className="text-xs text-green-400 font-medium">
-                      Loaded: {loadedFileName}
-                    </p>
-                    <p className="text-xs text-green-300 mt-1">
-                      Valid JSON - this will override the result
-                    </p>
-                  </div>
-                )}
-
-                {/* Preview of loaded mock data */}
-                {parsedMockData && (
-                  <div className="mt-4 flex-1 overflow-auto">
-                    <p className="text-xs text-gray-400 mb-2">Preview:</p>
-                    <div className="json-tree w-full max-h-64 overflow-auto bg-[#2d2d4a] rounded p-2">
-                      <JsonTree data={parsedMockData} />
+                {displayFileName && hasMockData && (
+                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded flex items-center gap-3">
+                    <svg
+                      className="w-5 h-5 text-green-400 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-green-400 font-medium">
+                        {displayFileName}
+                      </p>
+                      <p className="text-xs text-green-300 mt-0.5">
+                        {displayFileSize !== null && formatFileSize(displayFileSize)} — {mockType === "js" ? "Script executes on each request (errors shown in console)" : "Will override the result"}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -355,13 +399,15 @@ export function OperationDetail({
             {rightTab === "result" && (
               <>
                 <div className="json-tree w-full">
-                  {parsedMockData && (
-                    <div className="mb-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded w-11/12">
+                  {hasMockData && (
+                    <div className="mb-4 p-3 bg-purple-500/10 border-purple-500/30 border rounded w-11/12">
                       <h3 className="text-sm font-medium text-purple-400">
                         Mocked Response
                       </h3>
-                      <p className="text-xs text-purple-300 mt-1">
-                        This result is overridden by mock data
+                      <p className="text-xs mt-1 text-purple-300">
+                        {mockType === "js"
+                          ? "Script executes on each request - result shown is from last execution"
+                          : "This result is overridden by mock data"}
                       </p>
                     </div>
                   )}
@@ -441,4 +487,10 @@ export function OperationDetail({
       </div>
     </div>
   );
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
