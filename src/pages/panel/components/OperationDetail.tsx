@@ -1,6 +1,5 @@
 import React, { useState, useRef, useMemo, useCallback } from "react";
 import { GraphQLOperation } from "@src/shared/types";
-import { CopyButton } from "./JsonTree";
 import { EditableJsonTree, useIsLargeJson, LargeJsonWarning } from "./EditableJsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
 import { JavaScriptEditor } from "./JavaScriptEditor";
@@ -142,20 +141,16 @@ function ResultTab({
           <span>Loading...</span>
         </div>
       ) : displayResult ? (
-        <div className="relative mt-2">
-          <div className="absolute top-0 right-0 z-10">
-            <CopyButton data={displayResult} />
-          </div>
-          <EditableJsonTree
-            data={displayResult}
-            readOnly
-            collapsed={jsonCollapsed}
-            hideWarning
-            forceExpanded={forceExpanded}
-          />
-        </div>
+        <EditableJsonTree
+          data={displayResult}
+          readOnly
+          collapsed={jsonCollapsed}
+          hideWarning
+          forceExpanded={forceExpanded}
+          showCopyButton
+        />
       ) : (
-        <span className="text-gray-500 mt-2 block">No result</span>
+        <span className="text-gray-500 pt-2 block">No result</span>
       )}
     </div>
   );
@@ -224,18 +219,14 @@ function ResponseTab({ response, displayResult, jsonCollapsed }: ResponseTabProp
           <LargeJsonWarning onExpand={() => setForceExpanded(true)} />
         )}
         {displayResult ? (
-          <div className="relative">
-            <div className="absolute top-0 right-0 z-10">
-              <CopyButton data={displayResult} />
-            </div>
-            <EditableJsonTree
-              data={displayResult}
-              readOnly
-              collapsed={jsonCollapsed}
-              hideWarning
-              forceExpanded={forceExpanded}
-            />
-          </div>
+          <EditableJsonTree
+            data={displayResult}
+            readOnly
+            collapsed={jsonCollapsed}
+            hideWarning
+            forceExpanded={forceExpanded}
+            showCopyButton
+          />
         ) : (
           <div className="bg-leo-elevated rounded p-3">
             <span className="text-gray-500 text-xs">No body</span>
@@ -276,19 +267,15 @@ function CacheTab({ operationCache, jsonCollapsed }: CacheTabProps) {
         <LargeJsonWarning onExpand={() => setForceExpanded(true)} />
       )}
 
-      {/* JSON content with copy button aligned to it */}
-      <div className="relative mt-2">
-        <div className="absolute top-0 right-0 z-10">
-          <CopyButton data={operationCache} />
-        </div>
-        <EditableJsonTree
-          data={operationCache}
-          readOnly
-          collapsed={jsonCollapsed}
-          hideWarning
-          forceExpanded={forceExpanded}
-        />
-      </div>
+      {/* JSON content with copy button */}
+      <EditableJsonTree
+        data={operationCache}
+        readOnly
+        collapsed={jsonCollapsed}
+        hideWarning
+        forceExpanded={forceExpanded}
+        showCopyButton
+      />
     </div>
   );
 }
@@ -604,22 +591,9 @@ export function OperationDetail({
 
                     {/* Body */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-medium text-gray-400">
-                          Body
-                        </h3>
-                        {operation.request.body && (
-                          <CopyButton
-                            data={(() => {
-                              try {
-                                return JSON.parse(operation.request.body);
-                              } catch {
-                                return operation.request.body;
-                              }
-                            })()}
-                          />
-                        )}
-                      </div>
+                      <h3 className="text-xs font-medium text-gray-400 mb-2">
+                        Body
+                      </h3>
                       {operation.request.body ? (
                         (() => {
                           try {
@@ -629,6 +603,7 @@ export function OperationDetail({
                                 data={parsed}
                                 readOnly
                                 collapsed={jsonCollapsed}
+                                showCopyButton
                               />
                             );
                           } catch {
@@ -666,26 +641,20 @@ export function OperationDetail({
             )}
 
             {leftTab === "variables" && (
-              <>
-                <div className="json-tree w-full">
-                  {operation.variables &&
-                  Object.keys(operation.variables).length > 0 ? (
-                    <EditableJsonTree
-                      data={operation.variables}
-                      readOnly
-                      collapsed={jsonCollapsed}
-                    />
-                  ) : (
-                    <span className="text-gray-500">No variables</span>
-                  )}
-                </div>
+              <div className="json-tree w-full">
                 {operation.variables &&
-                  Object.keys(operation.variables).length > 0 && (
-                    <div className="fixed-copy-button">
-                      <CopyButton data={operation.variables} />
-                    </div>
-                  )}
-              </>
+                Object.keys(operation.variables).length > 0 ? (
+                  <EditableJsonTree
+                    data={operation.variables}
+                    readOnly
+                    collapsed={jsonCollapsed}
+                    showCopyButton
+                    noPadding
+                  />
+                ) : (
+                  <span className="text-gray-500">No variables</span>
+                )}
+              </div>
             )}
 
             {leftTab === "policy" && (
@@ -1059,16 +1028,14 @@ export function OperationDetail({
                     )}
 
                     {/* Editable JSON tree with copy button and disabled overlay */}
-                    <div className="mt-3 relative">
-                      <div className="absolute top-0 right-0 z-10">
-                        <CopyButton data={parsedMockData} />
-                      </div>
+                    <div className="relative">
                       <EditableJsonTree
                         data={parsedMockData}
                         onEdit={handleJsonEdit}
                         collapsed={jsonCollapsed}
                         hideWarning
                         forceExpanded={mockForceExpanded}
+                        showCopyButton
                       />
                       {/* Disabled overlay */}
                       {!mockEnabled && (

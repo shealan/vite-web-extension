@@ -162,13 +162,20 @@ body {
 }
 
 /* JSON Tree icon colors - grey default, lighter on hover */
-.editable-json-tree svg {
+/* Exclude copy button SVGs which have their own styling */
+.editable-json-tree svg:not(.json-copy-button svg) {
   fill: #4a4a4a !important;
   stroke: #4a4a4a !important;
   transition: fill 0.15s ease, stroke 0.15s ease;
 }
 
-.editable-json-tree svg:hover {
+.editable-json-tree svg:not(.json-copy-button svg):hover {
   fill: #888888 !important;
   stroke: #888888 !important;
+}
+
+/* Ensure copy button SVGs use their own colors */
+.json-copy-button svg {
+  fill: none !important;
+  stroke: currentColor !important;
 }
