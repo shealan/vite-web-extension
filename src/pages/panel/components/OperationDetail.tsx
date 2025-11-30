@@ -1,4 +1,9 @@
 import React, { useState, useRef, useMemo, useCallback } from "react";
+import {
+  Panel as ResizablePanel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
 import { GraphQLOperation } from "@src/shared/types";
 import {
   EditableJsonTree,
@@ -580,9 +585,10 @@ function OperationDetailInner({
       </div>
 
       {/* Two-panel layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <PanelGroup direction="horizontal" autoSaveId="leo-detail-panels" className="flex-1">
         {/* Left Panel - Query/Variables/Cache */}
-        <div className="w-1/2 flex flex-col border-r border-leo-border">
+        <ResizablePanel defaultSize={50} minSize={25} maxSize={75}>
+          <div className="h-full flex flex-col">
           {/* Left Tabs */}
           <div className="flex border-b border-leo-border">
             {leftTabs.map((tab) => (
@@ -794,10 +800,14 @@ function OperationDetailInner({
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </ResizablePanel>
+
+        <PanelResizeHandle className="panel-resize-handle" />
 
         {/* Right Panel - Result/Cache */}
-        <div className="w-1/2 flex flex-col">
+        <ResizablePanel defaultSize={50} minSize={25} maxSize={75}>
+          <div className="h-full flex flex-col">
           {/* Right Tabs */}
           <div className="flex border-b border-leo-border">
             {rightTabs.map((tab) => (
@@ -1270,8 +1280,9 @@ function OperationDetailInner({
               </div>
             )}
           </div>
-        </div>
-      </div>
+          </div>
+        </ResizablePanel>
+      </PanelGroup>
     </div>
   );
 }

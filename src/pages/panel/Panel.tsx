@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import "@pages/panel/Panel.css";
 import {
+  Panel as ResizablePanel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
+import {
   GraphQLOperation,
   RpcMethod,
   RawWatchedQuery,
@@ -202,7 +207,9 @@ export default function Panel() {
   const [mockFileInfoMap, setMockFileInfoMap] = useState<
     Record<string, MockFileInfo>
   >({});
-  const [mockEnabledMap, setMockEnabledMap] = useState<Record<string, boolean>>({});
+  const [mockEnabledMap, setMockEnabledMap] = useState<Record<string, boolean>>(
+    {}
+  );
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -217,25 +224,35 @@ export default function Panel() {
     : null;
 
   // Re-apply all mocks to the injected script (used after page refresh)
-  const reapplyMocks = useCallback(async (mocks: Record<string, string>, enabledMap: Record<string, boolean>) => {
-    if (!rpcClientRef.current) return;
+  const reapplyMocks = useCallback(
+    async (
+      mocks: Record<string, string>,
+      enabledMap: Record<string, boolean>
+    ) => {
+      if (!rpcClientRef.current) return;
 
-    for (const [operationName, mockDataStr] of Object.entries(mocks)) {
-      if (!mockDataStr.trim()) continue;
-      // Check if mock is enabled (default to true if not specified)
-      const isEnabled = enabledMap[operationName] !== false;
-      try {
-        const parsedMockData = JSON.parse(mockDataStr);
-        await rpcClientRef.current.request("setMockData", {
-          operationName,
-          mockData: isEnabled ? parsedMockData : null,
-        });
-        console.log(`[Leonardo.Ai] Re-applied mock for: ${operationName} (${isEnabled ? "enabled" : "disabled"})`);
-      } catch {
-        // Invalid JSON, skip
+      for (const [operationName, mockDataStr] of Object.entries(mocks)) {
+        if (!mockDataStr.trim()) continue;
+        // Check if mock is enabled (default to true if not specified)
+        const isEnabled = enabledMap[operationName] !== false;
+        try {
+          const parsedMockData = JSON.parse(mockDataStr);
+          await rpcClientRef.current.request("setMockData", {
+            operationName,
+            mockData: isEnabled ? parsedMockData : null,
+          });
+          console.log(
+            `[Leonardo.Ai] Re-applied mock for: ${operationName} (${
+              isEnabled ? "enabled" : "disabled"
+            })`
+          );
+        } catch {
+          // Invalid JSON, skip
+        }
       }
-    }
-  }, []);
+    },
+    []
+  );
 
   // Load persisted state on mount
   useEffect(() => {
@@ -263,7 +280,14 @@ export default function Panel() {
       activeTab,
       settings,
     });
-  }, [mockDataMap, mockFileInfoMap, mockEnabledMap, activeTab, settings, isInitialized]);
+  }, [
+    mockDataMap,
+    mockFileInfoMap,
+    mockEnabledMap,
+    activeTab,
+    settings,
+    isInitialized,
+  ]);
 
   // Chakra highlighter script - defined outside useEffect so it can be reused
   const injectChakraHighlighter = useCallback((enabled: boolean) => {
@@ -537,7 +561,10 @@ export default function Panel() {
           // Re-apply mocks and Chakra highlighter when Apollo Client is detected (after page load/refresh)
           loadPersistedState().then((persisted) => {
             if (persisted?.mockDataMap) {
-              reapplyMocks(persisted.mockDataMap, persisted.mockEnabledMap || {});
+              reapplyMocks(
+                persisted.mockDataMap,
+                persisted.mockEnabledMap || {}
+              );
             }
             // Re-inject Chakra highlighter if it was enabled
             if (persisted?.settings?.highlightChakra) {
@@ -632,7 +659,9 @@ export default function Panel() {
           })
           .then(() => {
             console.log(
-              `[Leonardo.Ai] Mock ${parsedMockData ? "updated" : "cleared"} for:`,
+              `[Leonardo.Ai] Mock ${
+                parsedMockData ? "updated" : "cleared"
+              } for:`,
               operationName
             );
           })
@@ -640,7 +669,9 @@ export default function Panel() {
             console.error("[Leonardo.Ai] Failed to set mock data:", error);
           });
       } else {
-        console.warn("[Leonardo.Ai] RPC client not ready, mock will be applied on next connection");
+        console.warn(
+          "[Leonardo.Ai] RPC client not ready, mock will be applied on next connection"
+        );
       }
     },
     []
@@ -708,15 +739,42 @@ export default function Panel() {
             Developer Tools
           </div>
           <span
-            className={`px-2 py-0.5 text-xs rounded-full ${
+            className={`px-2 py-0.5 text-xs rounded-full flex items-center gap-0.5 ${
               state.isConnected
                 ? "bg-green-500/20 text-green-400"
                 : "bg-gray-500/20 text-gray-400 animate-pulse"
             }`}
           >
-            {state.isConnected
-              ? "Apollo client connected"
-              : "Waiting for Apollo client..."}
+            {state.isConnected ? (
+              <svg
+                className="size-3 relative -left-px"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="size-3 relative -left-px"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            )}
+            Apollo
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -822,7 +880,9 @@ export default function Panel() {
                 </button>
               </label>
               <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-xs text-gray-300">Highlight Chakra components</span>
+                <span className="text-xs text-gray-300">
+                  Highlight Chakra components
+                </span>
                 <button
                   onClick={() =>
                     setSettings((prev) => ({
@@ -879,47 +939,57 @@ export default function Panel() {
       </nav>
 
       {/* Content */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 overflow-hidden">
         {activeTab === "cache" ? (
           <CacheViewer cache={state.cache} />
         ) : (
-          <>
+          <PanelGroup direction="horizontal" autoSaveId="leo-main-panels">
             {/* Operation List */}
-            <div className="w-80 border-r border-leo-border overflow-y-auto">
-              <OperationList
-                operations={activeTab === "queries" ? queries : mutations}
-                selectedId={selectedOperationId ?? undefined}
-                onSelect={(op) => setSelectedOperationId(op.id)}
-                operationType={activeTab as "queries" | "mutations"}
-                mockDataMap={mockDataMap}
-                mockEnabledMap={mockEnabledMap}
-              />
-            </div>
+            <ResizablePanel defaultSize={25} minSize={15} maxSize={50}>
+              <div className="h-full overflow-y-auto">
+                <OperationList
+                  operations={activeTab === "queries" ? queries : mutations}
+                  selectedId={selectedOperationId ?? undefined}
+                  onSelect={(op) => setSelectedOperationId(op.id)}
+                  operationType={activeTab as "queries" | "mutations"}
+                  mockDataMap={mockDataMap}
+                  mockEnabledMap={mockEnabledMap}
+                />
+              </div>
+            </ResizablePanel>
+
+            <PanelResizeHandle className="panel-resize-handle" />
 
             {/* Operation Detail */}
-            <div className="flex-1 overflow-y-auto">
-              {selectedOperation ? (
-                <OperationDetail
-                  operation={selectedOperation}
-                  mockData={mockDataMap[selectedOperation.operationName] || ""}
-                  mockFileInfo={
-                    mockFileInfoMap[selectedOperation.operationName]
-                  }
-                  mockEnabled={mockEnabledMap[selectedOperation.operationName] !== false}
-                  onMockDataChange={handleMockDataChange}
-                  onMockEnabledChange={handleMockEnabledChange}
-                  autoExpandJson={settings.autoExpandJson}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  <div className="flex flex-col items-center gap-3">
-                    <Logo className="size-16 text-white/15" />
-                    Select an operation to view details
+            <ResizablePanel defaultSize={75} minSize={30}>
+              <div className="h-full overflow-y-auto">
+                {selectedOperation ? (
+                  <OperationDetail
+                    operation={selectedOperation}
+                    mockData={
+                      mockDataMap[selectedOperation.operationName] || ""
+                    }
+                    mockFileInfo={
+                      mockFileInfoMap[selectedOperation.operationName]
+                    }
+                    mockEnabled={
+                      mockEnabledMap[selectedOperation.operationName] !== false
+                    }
+                    onMockDataChange={handleMockDataChange}
+                    onMockEnabledChange={handleMockEnabledChange}
+                    autoExpandJson={settings.autoExpandJson}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="flex flex-col items-center gap-3">
+                      <Logo className="size-16 text-white/15" />
+                      Select an operation to view details
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </>
+                )}
+              </div>
+            </ResizablePanel>
+          </PanelGroup>
         )}
       </main>
     </div>
