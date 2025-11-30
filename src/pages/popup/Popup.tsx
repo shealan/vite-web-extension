@@ -51,6 +51,30 @@ const CheckIcon = () => (
   </svg>
 );
 
+// 3-dot menu icon SVG
+const MenuIcon = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="12" cy="5" r="2" />
+    <circle cx="12" cy="12" r="2" />
+    <circle cx="12" cy="19" r="2" />
+  </svg>
+);
+
+// Close icon SVG
+const CloseIcon = () => (
+  <svg
+    className="w-4 h-4"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+);
+
 // Copiable field component
 function CopyableField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -102,6 +126,7 @@ export default function Popup() {
   const [user, setUser] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [timestamp, setTimestamp] = useState<number | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     chrome.storage.local
@@ -188,6 +213,16 @@ export default function Popup() {
   return (
     <div className="w-[400px] bg-leo-base text-gray-200 font-sans text-sm">
       {/* Header */}
+      <div className="relative flex items-center justify-center px-4 pt-5 pb-4 bg-leo-elevated border-b border-leo-border">
+        <img src="/logo-text.png" className="h-8" alt="Leonardo.Ai" />
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="absolute right-3 top-3 p-1.5 rounded hover:bg-white/10 transition-colors text-gray-400 hover:text-gray-200"
+          title="Settings"
+        >
+          <MenuIcon />
+        </button>
+      </div>
       <div className="flex items-center justify-between gap-3 px-4 py-3 bg-leo-elevated border-b border-leo-border">
         <span className="flex items-center gap-0.5 text-base font-semibold text-gray-200 truncate">
           <span className="text-leo-purple-400 font-semibold text-xl">@</span>
@@ -199,6 +234,30 @@ export default function Popup() {
           </span>
         )}
       </div>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setIsSettingsOpen(false)}
+          />
+          <div className="relative bg-leo-elevated border border-leo-border-strong rounded-lg shadow-xl w-80 max-w-[90vw]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-leo-border-strong">
+              <h2 className="text-sm font-semibold text-white">Settings</h2>
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="p-1 hover:bg-white/10 rounded transition-colors text-gray-400 hover:text-gray-200"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <div className="p-4 text-center text-gray-500 text-sm">
+              {/* Empty for now */}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* User Info Section */}
       <div className="px-4 py-3 border-b border-leo-border">
@@ -290,7 +349,7 @@ export default function Popup() {
         ) : (
           <span />
         )}
-        <span>v1.4.0</span>
+        <span>DevTools: v1.4.0</span>
       </div>
     </div>
   );
