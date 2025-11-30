@@ -795,6 +795,18 @@
               const firstKey = lastResponses.keys().next().value;
               lastResponses.delete(firstKey);
             }
+
+            // Special handling for GetUserDetails - relay to extension for popup
+            if (operationName === "GetUserDetails" && data.data) {
+              // Handle both users array and users_by_pk formats
+              const userData = data.data.users_by_pk || (data.data.users && data.data.users[0]);
+              if (userData) {
+                postMessage("USER_DATA_UPDATE", {
+                  user: userData,
+                  timestamp: Date.now(),
+                });
+              }
+            }
           }
         })
         .catch(function () {

@@ -18,6 +18,16 @@ function setupMessageRelay() {
     if (event.source !== window) return;
     if (event.data?.source !== PAGE_SOURCE) return;
 
+    // Special handling for user data - store directly in chrome.storage.local
+    if (event.data.type === 'USER_DATA_UPDATE' && event.data.payload?.user) {
+      chrome.storage.local.set({
+        leoUserData: event.data.payload.user,
+        leoUserDataTimestamp: event.data.payload.timestamp,
+      }).catch(() => {
+        // Storage might not be available
+      });
+    }
+
     // Forward to background script
     chrome.runtime.sendMessage({
       source: SOURCE,

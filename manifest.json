@@ -5,6 +5,10 @@
   "icons": {
     "128": "icon-128.png"
   },
+  "action": {
+    "default_popup": "src/pages/popup/index.html",
+    "default_icon": "icon-32.png"
+  },
   "permissions": [
     "scripting",
     "storage"
