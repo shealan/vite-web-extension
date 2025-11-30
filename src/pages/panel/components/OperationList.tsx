@@ -6,6 +6,10 @@ interface OperationListProps {
   selectedId?: string;
   onSelect: (operation: GraphQLOperation) => void;
   operationType: "queries" | "mutations";
+  /** Map of operation names to mock data (non-empty = has mock) */
+  mockDataMap?: Record<string, string>;
+  /** Map of operation names to enabled state */
+  mockEnabledMap?: Record<string, boolean>;
 }
 
 function Spinner() {
@@ -33,12 +37,32 @@ function Spinner() {
   );
 }
 
+// Mock badge component
+function MockBadge() {
+  return (
+    <span
+      className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] font-semibold text-white bg-purple-500 rounded"
+      title="Mocked"
+    >
+      M
+    </span>
+  );
+}
+
 export function OperationList({
   operations,
   selectedId,
   onSelect,
   operationType,
+  mockDataMap = {},
+  mockEnabledMap = {},
 }: OperationListProps) {
+  // Helper to check if an operation has an active mock
+  const hasMock = (operationName: string) => {
+    const mockData = mockDataMap[operationName];
+    const isEnabled = mockEnabledMap[operationName] !== false;
+    return mockData && mockData.trim() !== "" && isEnabled;
+  };
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredOperations = useMemo(() => {
@@ -82,9 +106,12 @@ export function OperationList({
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-gray-200 truncate font-mono">
-                    {operation.operationName}
-                  </span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {hasMock(operation.operationName) && <MockBadge />}
+                    <span className="text-sm font-medium text-gray-200 truncate font-mono">
+                      {operation.operationName}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {operation.status === "loading" && <Spinner />}
                     {operation.status === "error" && (

@@ -891,6 +891,8 @@ export default function Panel() {
                 selectedId={selectedOperationId ?? undefined}
                 onSelect={(op) => setSelectedOperationId(op.id)}
                 operationType={activeTab as "queries" | "mutations"}
+                mockDataMap={mockDataMap}
+                mockEnabledMap={mockEnabledMap}
               />
             </div>
 
