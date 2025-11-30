@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useCallback } from "react";
 import { GraphQLOperation } from "@src/shared/types";
 import { CopyButton } from "./JsonTree";
-import { EditableJsonTree } from "./EditableJsonTree";
+import { EditableJsonTree, useIsLargeJson, LargeJsonWarning } from "./EditableJsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
 import { JavaScriptEditor } from "./JavaScriptEditor";
 
@@ -52,22 +52,254 @@ interface OperationDetailProps {
   operation: GraphQLOperation;
   mockData?: string;
   mockFileInfo?: MockFileInfo;
+  mockEnabled?: boolean;
   onMockDataChange?: (
     operationName: string,
     mockData: string,
     fileInfo?: MockFileInfo
   ) => void;
+  onMockEnabledChange?: (operationName: string, enabled: boolean) => void;
   autoExpandJson?: boolean;
 }
 
 type LeftTab = "request" | "query" | "variables" | "policy";
 type RightTab = "response" | "result" | "cache" | "mock";
 
+// Result tab component with proper warning/copy button positioning
+interface ResultTabProps {
+  displayResult: unknown;
+  hasMockData: boolean;
+  mockEnabled: boolean;
+  mockType: "json" | "js" | null;
+  operation: GraphQLOperation;
+  parsedMockData: unknown;
+  jsonCollapsed: number | boolean;
+}
+
+function ResultTab({
+  displayResult,
+  hasMockData,
+  mockEnabled,
+  mockType,
+  operation,
+  parsedMockData,
+  jsonCollapsed,
+}: ResultTabProps) {
+  const [forceExpanded, setForceExpanded] = useState(false);
+  const isLargeJson = useIsLargeJson(displayResult);
+  const showLargeWarning = isLargeJson && !forceExpanded && !!displayResult;
+
+  return (
+    <div className="json-tree w-full">
+      {/* Warning banners - full width, above everything */}
+      {hasMockData && mockEnabled && (
+        <div className="mb-4 p-3 bg-purple-500/10 border-purple-500/30 border rounded">
+          <h3 className="text-sm font-medium text-purple-400">
+            Mocked Response
+          </h3>
+          <p className="text-xs mt-1 text-purple-300">
+            {mockType === "js"
+              ? "Script executes on each request - result shown is from last execution"
+              : "This result is overridden by mock data"}
+          </p>
+        </div>
+      )}
+      {operation.error && parsedMockData === null && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded">
+          <h3 className="text-sm font-medium text-red-400">Error</h3>
+          <p className="text-xs text-red-300 mt-1">
+            An error was returned by this {operation.type} operation
+          </p>
+        </div>
+      )}
+      {showLargeWarning && (
+        <LargeJsonWarning onExpand={() => setForceExpanded(true)} />
+      )}
+
+      {/* JSON content with copy button aligned to it */}
+      {operation.status === "loading" && parsedMockData === null ? (
+        <div className="flex items-center gap-2 text-gray-500 mt-2">
+          <svg
+            className="animate-spin h-4 w-4 text-purple-400"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          <span>Loading...</span>
+        </div>
+      ) : displayResult ? (
+        <div className="relative mt-2">
+          <div className="absolute top-0 right-0 z-10">
+            <CopyButton data={displayResult} />
+          </div>
+          <EditableJsonTree
+            data={displayResult}
+            readOnly
+            collapsed={jsonCollapsed}
+            hideWarning
+            forceExpanded={forceExpanded}
+          />
+        </div>
+      ) : (
+        <span className="text-gray-500 mt-2 block">No result</span>
+      )}
+    </div>
+  );
+}
+
+// Response tab component with proper warning/copy button positioning
+interface ResponseTabProps {
+  response: GraphQLOperation["response"];
+  displayResult: unknown;
+  jsonCollapsed: number | boolean;
+}
+
+function ResponseTab({ response, displayResult, jsonCollapsed }: ResponseTabProps) {
+  const [forceExpanded, setForceExpanded] = useState(false);
+  const isLargeJson = useIsLargeJson(displayResult);
+  const showLargeWarning = isLargeJson && !forceExpanded && !!displayResult;
+
+  if (!response) {
+    return (
+      <div className="text-gray-500">
+        <p>No response data available.</p>
+        <p className="mt-2 text-xs">
+          Response data is captured when the operation receives a network
+          response. It may not be available for cached queries or if the request
+          hasn't completed yet.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 pr-4">
+      {/* Status */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span
+            className={`px-2 py-0.5 text-xs rounded font-medium ${
+              response.status >= 200 && response.status < 300
+                ? "bg-green-500/20 text-green-400"
+                : response.status >= 400
+                ? "bg-red-500/20 text-red-400"
+                : "bg-yellow-500/20 text-yellow-400"
+            }`}
+          >
+            {response.status}
+          </span>
+          <span className="text-xs text-gray-300 font-mono">
+            {response.statusText}
+          </span>
+        </div>
+      </div>
+
+      {/* Headers */}
+      <div>
+        <h3 className="text-xs font-medium text-gray-400 mb-2">Headers</h3>
+        <div className="bg-leo-elevated rounded p-3">
+          <HeadersTable headers={response.headers} />
+        </div>
+      </div>
+
+      {/* Body */}
+      <div>
+        <h3 className="text-xs font-medium text-gray-400 mb-2">Body</h3>
+        {/* Large file warning - full width, above JSON */}
+        {showLargeWarning && (
+          <LargeJsonWarning onExpand={() => setForceExpanded(true)} />
+        )}
+        {displayResult ? (
+          <div className="relative">
+            <div className="absolute top-0 right-0 z-10">
+              <CopyButton data={displayResult} />
+            </div>
+            <EditableJsonTree
+              data={displayResult}
+              readOnly
+              collapsed={jsonCollapsed}
+              hideWarning
+              forceExpanded={forceExpanded}
+            />
+          </div>
+        ) : (
+          <div className="bg-leo-elevated rounded p-3">
+            <span className="text-gray-500 text-xs">No body</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Cache tab component with proper warning/copy button positioning
+interface CacheTabProps {
+  operationCache: unknown;
+  jsonCollapsed: number | boolean;
+}
+
+function CacheTab({ operationCache, jsonCollapsed }: CacheTabProps) {
+  const [forceExpanded, setForceExpanded] = useState(false);
+  const isLargeJson = useIsLargeJson(operationCache);
+  const showLargeWarning = isLargeJson && !forceExpanded && !!operationCache;
+
+  if (!operationCache) {
+    return (
+      <div className="text-gray-500">
+        <p>No cached data available for this operation.</p>
+        <p className="mt-2 text-xs">
+          Cached data is retrieved from Apollo Client's watched queries. It may
+          not be available if the query is no longer being watched.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="json-tree w-full">
+      {/* Large file warning - full width, above JSON */}
+      {showLargeWarning && (
+        <LargeJsonWarning onExpand={() => setForceExpanded(true)} />
+      )}
+
+      {/* JSON content with copy button aligned to it */}
+      <div className="relative mt-2">
+        <div className="absolute top-0 right-0 z-10">
+          <CopyButton data={operationCache} />
+        </div>
+        <EditableJsonTree
+          data={operationCache}
+          readOnly
+          collapsed={jsonCollapsed}
+          hideWarning
+          forceExpanded={forceExpanded}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function OperationDetail({
   operation,
   mockData = "",
   mockFileInfo,
+  mockEnabled = true,
   onMockDataChange,
+  onMockEnabledChange,
   autoExpandJson = false,
 }: OperationDetailProps) {
   // When autoExpandJson is true, set collapsed to false to expand all nodes
@@ -76,6 +308,7 @@ export function OperationDetail({
   const [rightTab, setRightTab] = useState<RightTab>("response");
   const [mockError, setMockError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [mockForceExpanded, setMockForceExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use persisted file info, or fall back to null
@@ -91,7 +324,7 @@ export function OperationDetail({
 
   const rightTabs: { id: RightTab; label: string }[] = [
     { id: "response", label: "Response" },
-    { id: "result", label: "Result Data" },
+    { id: "result", label: "Data" },
     { id: "cache", label: "Cache Data" },
     { id: "mock", label: "Mock Data" },
   ];
@@ -117,6 +350,9 @@ export function OperationDetail({
 
   // For display, we show the actual mock data (not the wrapper for JS)
   const hasMockData = parsedMockData !== null;
+
+  // Check if mock data is large (for JSON mocks only)
+  const isMockDataLarge = useIsLargeJson(parsedMockData);
 
   // Process file content and update mock data
   const processFileContent = useCallback(
@@ -388,7 +624,13 @@ export function OperationDetail({
                         (() => {
                           try {
                             const parsed = JSON.parse(operation.request.body);
-                            return <EditableJsonTree data={parsed} readOnly collapsed={jsonCollapsed} />;
+                            return (
+                              <EditableJsonTree
+                                data={parsed}
+                                readOnly
+                                collapsed={jsonCollapsed}
+                              />
+                            );
                           } catch {
                             return (
                               <div className="bg-leo-elevated rounded p-3">
@@ -428,7 +670,11 @@ export function OperationDetail({
                 <div className="json-tree w-full">
                   {operation.variables &&
                   Object.keys(operation.variables).length > 0 ? (
-                    <EditableJsonTree data={operation.variables} readOnly collapsed={jsonCollapsed} />
+                    <EditableJsonTree
+                      data={operation.variables}
+                      readOnly
+                      collapsed={jsonCollapsed}
+                    />
                   ) : (
                     <span className="text-gray-500">No variables</span>
                   )}
@@ -564,155 +810,30 @@ export function OperationDetail({
           {/* Right Content */}
           <div className="flex-1 overflow-auto p-4 json-panel">
             {rightTab === "response" && (
-              <div className="space-y-4 pr-4">
-                {operation.response ? (
-                  <>
-                    {/* Status */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`px-2 py-0.5 text-xs rounded font-medium ${
-                            operation.response.status >= 200 &&
-                            operation.response.status < 300
-                              ? "bg-green-500/20 text-green-400"
-                              : operation.response.status >= 400
-                              ? "bg-red-500/20 text-red-400"
-                              : "bg-yellow-500/20 text-yellow-400"
-                          }`}
-                        >
-                          {operation.response.status}
-                        </span>
-                        <span className="text-xs text-gray-300 font-mono">
-                          {operation.response.statusText}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Headers */}
-                    <div>
-                      <h3 className="text-xs font-medium text-gray-400 mb-2">
-                        Headers
-                      </h3>
-                      <div className="bg-leo-elevated rounded p-3">
-                        <HeadersTable headers={operation.response.headers} />
-                      </div>
-                    </div>
-
-                    {/* Body */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-medium text-gray-400">
-                          Body
-                        </h3>
-                        {displayResult && <CopyButton data={displayResult} />}
-                      </div>
-                      {displayResult ? (
-                        <EditableJsonTree data={displayResult} readOnly collapsed={jsonCollapsed} />
-                      ) : (
-                        <div className="bg-leo-elevated rounded p-3">
-                          <span className="text-gray-500 text-xs">No body</span>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-gray-500">
-                    <p>No response data available.</p>
-                    <p className="mt-2 text-xs">
-                      Response data is captured when the operation receives a
-                      network response. It may not be available for cached
-                      queries or if the request hasn't completed yet.
-                    </p>
-                  </div>
-                )}
-              </div>
+              <ResponseTab
+                response={operation.response}
+                displayResult={displayResult}
+                jsonCollapsed={jsonCollapsed}
+              />
             )}
 
             {rightTab === "result" && (
-              <>
-                <div className="json-tree w-full">
-                  {hasMockData && (
-                    <div className="mb-4 p-3 bg-purple-500/10 border-purple-500/30 border rounded w-11/12">
-                      <h3 className="text-sm font-medium text-purple-400">
-                        Mocked Response
-                      </h3>
-                      <p className="text-xs mt-1 text-purple-300">
-                        {mockType === "js"
-                          ? "Script executes on each request - result shown is from last execution"
-                          : "This result is overridden by mock data"}
-                      </p>
-                    </div>
-                  )}
-                  {operation.error && !parsedMockData && (
-                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded w-11/12">
-                      <h3 className="text-sm font-medium text-red-400">
-                        Error
-                      </h3>
-                      <p className="text-xs text-red-300 mt-1">
-                        An error was returned by this {operation.type} operation
-                      </p>
-                    </div>
-                  )}
-                  {operation.status === "loading" && !parsedMockData ? (
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <svg
-                        className="animate-spin h-4 w-4 text-purple-400"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      <span>Loading...</span>
-                    </div>
-                  ) : displayResult ? (
-                    <EditableJsonTree data={displayResult} readOnly collapsed={jsonCollapsed} />
-                  ) : (
-                    <span className="text-gray-500">No result</span>
-                  )}
-                </div>
-                {displayResult && (
-                  <div className="fixed-copy-button">
-                    <CopyButton data={displayResult} />
-                  </div>
-                )}
-              </>
+              <ResultTab
+                displayResult={displayResult}
+                hasMockData={hasMockData}
+                mockEnabled={mockEnabled}
+                mockType={mockType}
+                operation={operation}
+                parsedMockData={parsedMockData}
+                jsonCollapsed={jsonCollapsed}
+              />
             )}
 
             {rightTab === "cache" && (
-              <>
-                <div className="json-tree w-full">
-                  {operationCache ? (
-                    <EditableJsonTree data={operationCache} readOnly collapsed={jsonCollapsed} />
-                  ) : (
-                    <div className="text-gray-500">
-                      <p>No cached data available for this operation.</p>
-                      <p className="mt-2 text-xs">
-                        Cached data is retrieved from Apollo Client's watched
-                        queries. It may not be available if the query is no
-                        longer being watched.
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {operationCache && (
-                  <div className="fixed-copy-button">
-                    <CopyButton data={operationCache} />
-                  </div>
-                )}
-              </>
+              <CacheTab
+                operationCache={operationCache}
+                jsonCollapsed={jsonCollapsed}
+              />
             )}
 
             {rightTab === "mock" && (
@@ -778,11 +899,126 @@ export function OperationDetail({
                 {/* JSON Mock - show editable tree */}
                 {hasMockData && mockType === "json" && (
                   <div className="flex flex-col flex-1 pb-3">
-                    {/* Header with file info and actions */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
+                    {/* Card header with file info and actions */}
+                    <div
+                      className={`relative p-3 border rounded ${
+                        mockEnabled
+                          ? "bg-purple-500/10 border-purple-500/30"
+                          : "bg-gray-500/10 border-gray-500/30"
+                      }`}
+                    >
+                      <div className="absolute top-2 right-2 flex items-center gap-1">
+                        {/* Enable/Disable toggle */}
+                        <button
+                          onClick={() =>
+                            onMockEnabledChange?.(
+                              operation.operationName,
+                              !mockEnabled
+                            )
+                          }
+                          className={`p-1 rounded transition-colors ${
+                            mockEnabled
+                              ? "hover:bg-purple-500/20 text-purple-400 hover:text-purple-300"
+                              : "hover:bg-gray-500/20 text-gray-500 hover:text-gray-300"
+                          }`}
+                          title={mockEnabled ? "Disable mock" : "Enable mock"}
+                        >
+                          {mockEnabled ? (
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                        <button
+                          onClick={reloadFile}
+                          className={`p-1 rounded transition-colors ${
+                            mockEnabled
+                              ? "hover:bg-purple-500/20"
+                              : "hover:bg-gray-500/20"
+                          }`}
+                          title="Load different file"
+                        >
+                          <svg
+                            className={`w-4 h-4 ${
+                              mockEnabled
+                                ? "text-purple-400 hover:text-purple-300"
+                                : "text-gray-500 hover:text-gray-300"
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={clearMock}
+                          className={`p-1 rounded transition-colors ${
+                            mockEnabled
+                              ? "hover:bg-purple-500/20"
+                              : "hover:bg-gray-500/20"
+                          }`}
+                          title="Remove mock"
+                        >
+                          <svg
+                            className={`w-4 h-4 ${
+                              mockEnabled
+                                ? "text-purple-400 hover:text-purple-300"
+                                : "text-gray-500 hover:text-gray-300"
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-3 pr-20">
                         <svg
-                          className="w-4 h-4 text-green-400"
+                          className={`w-5 h-5 shrink-0 ${
+                            mockEnabled ? "text-purple-400" : "text-gray-500"
+                          }`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -794,84 +1030,135 @@ export function OperationDetail({
                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                           />
                         </svg>
-                        <span className="text-sm text-green-400 font-medium">
-                          {displayFileName || "Mock Data"}
-                        </span>
-                        {displayFileSize !== null && (
-                          <span className="text-xs text-gray-500">
-                            ({formatFileSize(displayFileSize)})
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={reloadFile}
-                          className="p-1.5 hover:bg-leo-elevated rounded transition-colors"
-                          title="Load different file"
-                        >
-                          <svg
-                            className="w-4 h-4 text-gray-400 hover:text-gray-200"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        <div className="flex-1">
+                          <p
+                            className={`text-sm font-medium ${
+                              mockEnabled ? "text-purple-400" : "text-gray-500"
+                            }`}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={clearMock}
-                          className="p-1.5 hover:bg-leo-elevated rounded transition-colors"
-                          title="Remove mock"
-                        >
-                          <svg
-                            className="w-4 h-4 text-gray-400 hover:text-red-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                            {displayFileName || "Mock Data"}
+                          </p>
+                          <p
+                            className={`text-xs mt-0.5 ${
+                              mockEnabled ? "text-purple-300" : "text-gray-500"
+                            }`}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
+                            {displayFileSize !== null &&
+                              formatFileSize(displayFileSize)}{" "}
+                            — Click values to edit
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Editable JSON tree */}
-                    <div className="flex-1 overflow-auto">
+                    {/* Large file warning - full width, above JSON */}
+                    {isMockDataLarge && !mockForceExpanded && (
+                      <div className="mt-3">
+                        <LargeJsonWarning onExpand={() => setMockForceExpanded(true)} />
+                      </div>
+                    )}
+
+                    {/* Editable JSON tree with copy button and disabled overlay */}
+                    <div className="mt-3 relative">
+                      <div className="absolute top-0 right-0 z-10">
+                        <CopyButton data={parsedMockData} />
+                      </div>
                       <EditableJsonTree
                         data={parsedMockData}
                         onEdit={handleJsonEdit}
                         collapsed={jsonCollapsed}
+                        hideWarning
+                        forceExpanded={mockForceExpanded}
                       />
+                      {/* Disabled overlay */}
+                      {!mockEnabled && (
+                        <div className="absolute inset-0 bg-leo-base/80 flex items-center justify-center rounded">
+                          <span className="text-white text-sm font-medium">
+                            Mock is disabled
+                          </span>
+                        </div>
+                      )}
                     </div>
-
-                    <p className="text-xs text-gray-500 mt-3">
-                      Click on values to edit. Changes apply immediately.
-                    </p>
                   </div>
                 )}
 
                 {/* JS Mock - show script info */}
                 {hasMockData && mockType === "js" && (
                   <div className="flex flex-col pb-3">
-                    <div className="relative p-3 bg-purple-500/10 border border-purple-500/30 rounded">
+                    <div
+                      className={`relative p-3 border rounded ${
+                        mockEnabled
+                          ? "bg-purple-500/10 border-purple-500/30"
+                          : "bg-gray-500/10 border-gray-500/30"
+                      }`}
+                    >
                       <div className="absolute top-2 right-2 flex items-center gap-1">
+                        {/* Enable/Disable toggle */}
+                        <button
+                          onClick={() =>
+                            onMockEnabledChange?.(
+                              operation.operationName,
+                              !mockEnabled
+                            )
+                          }
+                          className={`p-1 rounded transition-colors ${
+                            mockEnabled
+                              ? "hover:bg-purple-500/20 text-purple-400 hover:text-purple-300"
+                              : "hover:bg-gray-500/20 text-gray-500 hover:text-gray-300"
+                          }`}
+                          title={mockEnabled ? "Disable mock" : "Enable mock"}
+                        >
+                          {mockEnabled ? (
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                              />
+                            </svg>
+                          )}
+                        </button>
                         <button
                           onClick={reloadFile}
-                          className="p-1 hover:bg-purple-500/20 rounded transition-colors"
+                          className={`p-1 rounded transition-colors ${
+                            mockEnabled
+                              ? "hover:bg-purple-500/20"
+                              : "hover:bg-gray-500/20"
+                          }`}
                           title="Load different file"
                         >
                           <svg
-                            className="w-4 h-4 text-purple-400 hover:text-purple-300"
+                            className={`w-4 h-4 ${
+                              mockEnabled
+                                ? "text-purple-400 hover:text-purple-300"
+                                : "text-gray-500 hover:text-gray-300"
+                            }`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -886,11 +1173,19 @@ export function OperationDetail({
                         </button>
                         <button
                           onClick={clearMock}
-                          className="p-1 hover:bg-purple-500/20 rounded transition-colors"
+                          className={`p-1 rounded transition-colors ${
+                            mockEnabled
+                              ? "hover:bg-purple-500/20"
+                              : "hover:bg-gray-500/20"
+                          }`}
                           title="Remove mock"
                         >
                           <svg
-                            className="w-4 h-4 text-purple-400 hover:text-purple-300"
+                            className={`w-4 h-4 ${
+                              mockEnabled
+                                ? "text-purple-400 hover:text-purple-300"
+                                : "text-gray-500 hover:text-gray-300"
+                            }`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -904,9 +1199,11 @@ export function OperationDetail({
                           </svg>
                         </button>
                       </div>
-                      <div className="flex items-center gap-3 pr-14">
+                      <div className="flex items-center gap-3 pr-20">
                         <svg
-                          className="w-5 h-5 text-purple-400 shrink-0"
+                          className={`w-5 h-5 shrink-0 ${
+                            mockEnabled ? "text-purple-400" : "text-gray-500"
+                          }`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -915,14 +1212,22 @@ export function OperationDetail({
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                           />
                         </svg>
                         <div className="flex-1">
-                          <p className="text-sm text-purple-400 font-medium">
+                          <p
+                            className={`text-sm font-medium ${
+                              mockEnabled ? "text-purple-400" : "text-gray-500"
+                            }`}
+                          >
                             {displayFileName}
                           </p>
-                          <p className="text-xs text-purple-300 mt-0.5">
+                          <p
+                            className={`text-xs mt-0.5 ${
+                              mockEnabled ? "text-purple-300" : "text-gray-500"
+                            }`}
+                          >
                             {displayFileSize !== null &&
                               formatFileSize(displayFileSize)}{" "}
                             — Script executes on each request
@@ -931,9 +1236,9 @@ export function OperationDetail({
                       </div>
                     </div>
 
-                    {/* Editable script */}
-                    {parsedMockData?.__mockScript && (
-                      <div className="mt-3">
+                    {/* Editable script with disabled overlay */}
+                    {parsedMockData?.__mockScript !== undefined && (
+                      <div className="mt-3 relative">
                         <p className="text-xs text-gray-400 mb-2">
                           Script (editable):
                         </p>
@@ -941,12 +1246,21 @@ export function OperationDetail({
                           code={parsedMockData.__mockScript}
                           onChange={handleScriptEdit}
                         />
+                        {/* Disabled overlay */}
+                        {!mockEnabled && (
+                          <div className="absolute inset-0 top-6 bg-leo-base/80 flex items-center justify-center rounded">
+                            <span className="text-white text-sm font-medium">
+                              Mock is disabled
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     <p className="text-xs text-gray-500 mt-3">
-                      Access <code className="text-purple-400">variables</code>,{" "}
-                      <code className="text-purple-400">operationName</code>,{" "}
+                      Utilise <code className="text-purple-400">variables</code>
+                      , <code className="text-purple-400">operationName</code>,
+                      {" and "}
                       <code className="text-purple-400">request</code> to create
                       dynamic mock data.
                     </p>

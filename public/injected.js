@@ -49,7 +49,7 @@
       return true;
     },
 
-    show: function (operationName, isJsMock) {
+    show: function (operationName) {
       // Debounce: don't show toast for same operation within 3 seconds
       const now = Date.now();
       const lastTime = this.lastShown.get(operationName) || 0;
@@ -68,12 +68,7 @@
         return;
       }
 
-      console.log(
-        "[Leonardo.Ai] Showing toast for:",
-        operationName,
-        "isJsMock:",
-        isJsMock
-      );
+      // Toast shown for operation (verbose logging removed)
 
       // If toast already exists for this operation, just update the timestamp
       if (this.toasts.has(operationName)) {
@@ -90,17 +85,18 @@
       toast.style.cssText = `
         background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
         color: white;
-        padding: 10px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-size: 15px;
         font-weight: 500;
         box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         pointer-events: auto;
         animation: apolloLiteToastFadeIn 0.3s ease;
-        max-width: 300px;
+        max-width: 500px;
+        white-space: nowrap;
       `;
 
       // Add keyframes if not already added
@@ -120,24 +116,21 @@
         document.head.appendChild(style);
       }
 
-      // Icon (mock/script indicator)
+      // Icon (database-zap style - cylinder with lightning bolt)
       const icon = document.createElement("span");
-      icon.innerHTML = isJsMock
-        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>'
-        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
+      icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/><path d="M13 12l-2 4h3l-2 4"/></svg>';
       icon.style.cssText =
         "display: flex; align-items: center; flex-shrink: 0;";
 
       // Text
       const text = document.createElement("span");
-      text.style.cssText =
-        "overflow: hidden; text-overflow: ellipsis; white-space: nowrap;";
-      text.textContent = operationName + " is mocked";
+      text.style.cssText = "flex-shrink: 0;";
+      text.textContent = operationName + " data is being mocked";
 
       // Close button
       const closeBtn = document.createElement("button");
       closeBtn.innerHTML =
-        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
       closeBtn.style.cssText = `
         background: none;
         border: none;
@@ -148,7 +141,7 @@
         align-items: center;
         opacity: 0.7;
         flex-shrink: 0;
-        margin-left: 4px;
+        margin-left: 6px;
       `;
       closeBtn.onmouseover = function () {
         closeBtn.style.opacity = "1";
@@ -711,11 +704,7 @@
             mockConfig.__mockScript
           );
           mockData = mockFn(variables, operationName, mockRequest);
-          console.log(
-            "[Leonardo.Ai] Executed JS mock for:",
-            operationName,
-            mockData
-          );
+          console.log("[Leonardo.Ai] Executed JS mock for:", operationName);
         } catch (e) {
           console.error(
             "[Leonardo.Ai] JS mock execution error for:",
@@ -728,17 +717,12 @@
       } else {
         // Regular JSON mock
         mockData = mockConfig;
-        console.log(
-          "[Leonardo.Ai] Returning JSON mock for:",
-          operationName,
-          mockData
-        );
+        console.log("[Leonardo.Ai] Returning JSON mock for:", operationName);
       }
 
       // Show toast notification
-      console.log("[Leonardo.Ai] About to show toast for:", operationName);
       try {
-        toastContainer.show(operationName, isJsMock);
+        toastContainer.show(operationName);
       } catch (e) {
         console.error("[Leonardo.Ai] Toast error:", e);
       }

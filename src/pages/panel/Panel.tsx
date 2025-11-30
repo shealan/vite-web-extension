@@ -29,6 +29,7 @@ interface Settings {
 interface PersistedState {
   mockDataMap: Record<string, string>;
   mockFileInfoMap: Record<string, MockFileInfo>;
+  mockEnabledMap: Record<string, boolean>;
   activeTab: TabType;
   settings?: Settings;
 }
@@ -201,6 +202,7 @@ export default function Panel() {
   const [mockFileInfoMap, setMockFileInfoMap] = useState<
     Record<string, MockFileInfo>
   >({});
+  const [mockEnabledMap, setMockEnabledMap] = useState<Record<string, boolean>>({});
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -215,18 +217,20 @@ export default function Panel() {
     : null;
 
   // Re-apply all mocks to the injected script (used after page refresh)
-  const reapplyMocks = useCallback(async (mocks: Record<string, string>) => {
+  const reapplyMocks = useCallback(async (mocks: Record<string, string>, enabledMap: Record<string, boolean>) => {
     if (!rpcClientRef.current) return;
 
     for (const [operationName, mockDataStr] of Object.entries(mocks)) {
       if (!mockDataStr.trim()) continue;
+      // Check if mock is enabled (default to true if not specified)
+      const isEnabled = enabledMap[operationName] !== false;
       try {
         const parsedMockData = JSON.parse(mockDataStr);
         await rpcClientRef.current.request("setMockData", {
           operationName,
-          mockData: parsedMockData,
+          mockData: isEnabled ? parsedMockData : null,
         });
-        console.log("[Leonardo.Ai] Re-applied mock for:", operationName);
+        console.log(`[Leonardo.Ai] Re-applied mock for: ${operationName} (${isEnabled ? "enabled" : "disabled"})`);
       } catch {
         // Invalid JSON, skip
       }
@@ -240,6 +244,7 @@ export default function Panel() {
         setActiveTab(persisted.activeTab);
         setMockDataMap(persisted.mockDataMap);
         setMockFileInfoMap(persisted.mockFileInfoMap || {});
+        setMockEnabledMap(persisted.mockEnabledMap || {});
         setSettings(persisted.settings || defaultSettings);
         console.log("[Leonardo.Ai] Loaded persisted state:", persisted);
       }
@@ -254,10 +259,11 @@ export default function Panel() {
     savePersistedState({
       mockDataMap,
       mockFileInfoMap,
+      mockEnabledMap,
       activeTab,
       settings,
     });
-  }, [mockDataMap, mockFileInfoMap, activeTab, settings, isInitialized]);
+  }, [mockDataMap, mockFileInfoMap, mockEnabledMap, activeTab, settings, isInitialized]);
 
   // Chakra highlighter script - defined outside useEffect so it can be reused
   const injectChakraHighlighter = useCallback((enabled: boolean) => {
@@ -531,7 +537,7 @@ export default function Panel() {
           // Re-apply mocks and Chakra highlighter when Apollo Client is detected (after page load/refresh)
           loadPersistedState().then((persisted) => {
             if (persisted?.mockDataMap) {
-              reapplyMocks(persisted.mockDataMap);
+              reapplyMocks(persisted.mockDataMap, persisted.mockEnabledMap || {});
             }
             // Re-inject Chakra highlighter if it was enabled
             if (persisted?.settings?.highlightChakra) {
@@ -608,17 +614,17 @@ export default function Panel() {
       }
 
       // Send mock data to injected script to intercept future requests
-      if (rpcClientRef.current) {
-        let parsedMockData = null;
-        if (mockData.trim()) {
-          try {
-            parsedMockData = JSON.parse(mockData);
-          } catch {
-            // Invalid JSON, don't send to injected script
-            return;
-          }
+      let parsedMockData = null;
+      if (mockData.trim()) {
+        try {
+          parsedMockData = JSON.parse(mockData);
+        } catch (e) {
+          console.error("[Leonardo.Ai] Failed to parse mock data:", e);
+          return;
         }
+      }
 
+      if (rpcClientRef.current) {
         rpcClientRef.current
           .request("setMockData", {
             operationName,
@@ -626,16 +632,59 @@ export default function Panel() {
           })
           .then(() => {
             console.log(
-              `[Leonardo.Ai] Mock ${parsedMockData ? "set" : "cleared"} for:`,
+              `[Leonardo.Ai] Mock ${parsedMockData ? "updated" : "cleared"} for:`,
               operationName
             );
           })
           .catch((error) => {
             console.error("[Leonardo.Ai] Failed to set mock data:", error);
           });
+      } else {
+        console.warn("[Leonardo.Ai] RPC client not ready, mock will be applied on next connection");
       }
     },
     []
+  );
+
+  const handleMockEnabledChange = useCallback(
+    (operationName: string, enabled: boolean) => {
+      setMockEnabledMap((prev) => ({
+        ...prev,
+        [operationName]: enabled,
+      }));
+
+      // Get current mock data for this operation
+      const mockDataStr = mockDataMap[operationName];
+      if (!mockDataStr?.trim()) return;
+
+      let parsedMockData = null;
+      if (enabled) {
+        try {
+          parsedMockData = JSON.parse(mockDataStr);
+        } catch {
+          return;
+        }
+      }
+
+      // Send to injected script - null to disable, data to enable
+      if (rpcClientRef.current) {
+        rpcClientRef.current
+          .request("setMockData", {
+            operationName,
+            mockData: parsedMockData,
+          })
+          .then(() => {
+            console.log(
+              `[Leonardo.Ai] Mock ${enabled ? "enabled" : "disabled"} for:`,
+              operationName
+            );
+          })
+          .catch((error) => {
+            console.error("[Leonardo.Ai] Failed to toggle mock:", error);
+          });
+      }
+    },
+    [mockDataMap]
   );
 
   const tabs: { id: TabType; label: string; count?: number }[] = [
@@ -854,7 +903,9 @@ export default function Panel() {
                   mockFileInfo={
                     mockFileInfoMap[selectedOperation.operationName]
                   }
+                  mockEnabled={mockEnabledMap[selectedOperation.operationName] !== false}
                   onMockDataChange={handleMockDataChange}
+                  onMockEnabledChange={handleMockEnabledChange}
                   autoExpandJson={settings.autoExpandJson}
                 />
               ) : (

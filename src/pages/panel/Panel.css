@@ -113,6 +113,48 @@ body {
   pointer-events: none;
 }
 
+/* JavaScript Syntax Highlighting - Leonardo.Ai theme colors */
+.js-comment {
+  color: #6b7280; /* gray-500 */
+  font-style: italic;
+}
+
+.js-string {
+  color: #7ec699; /* soft green */
+}
+
+.js-keyword {
+  color: #b294bb; /* soft purple */
+}
+
+.js-boolean {
+  color: #c9a0dc; /* light purple/pink */
+}
+
+.js-number {
+  color: #d4a76a; /* warm amber */
+}
+
+.js-property {
+  color: #81a2be; /* soft blue */
+}
+
+.js-function {
+  color: #8abeb7; /* soft teal */
+}
+
+.js-identifier {
+  color: #c5c8c6; /* light gray */
+}
+
+.js-operator {
+  color: #8abeb7; /* soft teal */
+}
+
+.js-punctuation {
+  color: #969896; /* medium gray */
+}
+
 /* Editable JSON Tree Styles - reduce nesting line opacity */
 .editable-json-tree div[style*="border-left"],
 .editable-json-tree span[style*="border-left"] {
