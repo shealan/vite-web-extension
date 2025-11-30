@@ -1,6 +1,10 @@
 import React, { useState, useRef, useMemo, useCallback } from "react";
 import { GraphQLOperation } from "@src/shared/types";
-import { EditableJsonTree, useIsLargeJson, LargeJsonWarning } from "./EditableJsonTree";
+import {
+  EditableJsonTree,
+  useIsLargeJson,
+  LargeJsonWarning,
+} from "./EditableJsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
 import { JavaScriptEditor } from "./JavaScriptEditor";
 
@@ -163,7 +167,11 @@ interface ResponseTabProps {
   jsonCollapsed: number | boolean;
 }
 
-function ResponseTab({ response, displayResult, jsonCollapsed }: ResponseTabProps) {
+function ResponseTab({
+  response,
+  displayResult,
+  jsonCollapsed,
+}: ResponseTabProps) {
   const [forceExpanded, setForceExpanded] = useState(false);
   const isLargeJson = useIsLargeJson(displayResult);
   const showLargeWarning = isLargeJson && !forceExpanded && !!displayResult;
@@ -280,7 +288,37 @@ function CacheTab({ operationCache, jsonCollapsed }: CacheTabProps) {
   );
 }
 
-export function OperationDetail({
+// Deep equality check for operation prop to prevent re-renders from polling
+function arePropsEqual(
+  prevProps: OperationDetailProps,
+  nextProps: OperationDetailProps
+): boolean {
+  // Check simple props first (fast)
+  if (
+    prevProps.mockData !== nextProps.mockData ||
+    prevProps.mockEnabled !== nextProps.mockEnabled ||
+    prevProps.autoExpandJson !== nextProps.autoExpandJson ||
+    prevProps.onMockDataChange !== nextProps.onMockDataChange ||
+    prevProps.onMockEnabledChange !== nextProps.onMockEnabledChange
+  ) {
+    return false;
+  }
+
+  // Check mockFileInfo
+  if (prevProps.mockFileInfo?.fileName !== nextProps.mockFileInfo?.fileName ||
+      prevProps.mockFileInfo?.fileSize !== nextProps.mockFileInfo?.fileSize) {
+    return false;
+  }
+
+  // Deep compare operation - use JSON.stringify for stable comparison
+  try {
+    return JSON.stringify(prevProps.operation) === JSON.stringify(nextProps.operation);
+  } catch {
+    return prevProps.operation === nextProps.operation;
+  }
+}
+
+function OperationDetailInner({
   operation,
   mockData = "",
   mockFileInfo,
@@ -290,7 +328,8 @@ export function OperationDetail({
   autoExpandJson = false,
 }: OperationDetailProps) {
   // When autoExpandJson is true, set collapsed to false to expand all nodes
-  const jsonCollapsed = autoExpandJson ? false : 2;
+  // collapsed=1 keeps root expanded but collapses nested objects/arrays
+  const jsonCollapsed = autoExpandJson ? false : 1;
   const [leftTab, setLeftTab] = useState<LeftTab>("request");
   const [rightTab, setRightTab] = useState<RightTab>("response");
   const [mockError, setMockError] = useState<string | null>(null);
@@ -824,10 +863,10 @@ export function OperationDetail({
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                    className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer duration-200 transition-colors ${
                       isDragOver
-                        ? "border-purple-500 bg-purple-500/20"
-                        : "border-leo-border-strong hover:border-purple-500 hover:bg-leo-active"
+                        ? "border-purple-500/20"
+                        : "border-leo-border-strong hover:border-purple-500/20 hover:bg-leo-active/50"
                     }`}
                   >
                     <svg
@@ -1020,32 +1059,29 @@ export function OperationDetail({
                       </div>
                     </div>
 
-                    {/* Large file warning - full width, above JSON */}
-                    {isMockDataLarge && !mockForceExpanded && (
-                      <div className="mt-3">
-                        <LargeJsonWarning onExpand={() => setMockForceExpanded(true)} />
-                      </div>
-                    )}
+                    {/* Only show JSON content when mock is enabled */}
+                    {mockEnabled && (
+                      <>
+                        {/* Large file warning - full width, above JSON */}
+                        {isMockDataLarge && !mockForceExpanded && (
+                          <div className="mt-3">
+                            <LargeJsonWarning
+                              onExpand={() => setMockForceExpanded(true)}
+                            />
+                          </div>
+                        )}
 
-                    {/* Editable JSON tree with copy button and disabled overlay */}
-                    <div className="relative">
-                      <EditableJsonTree
-                        data={parsedMockData}
-                        onEdit={handleJsonEdit}
-                        collapsed={jsonCollapsed}
-                        hideWarning
-                        forceExpanded={mockForceExpanded}
-                        showCopyButton
-                      />
-                      {/* Disabled overlay */}
-                      {!mockEnabled && (
-                        <div className="absolute inset-0 bg-leo-base/80 flex items-center justify-center rounded">
-                          <span className="text-white text-sm font-medium">
-                            Mock is disabled
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                        {/* Editable JSON tree with copy button */}
+                        <EditableJsonTree
+                          data={parsedMockData}
+                          onEdit={handleJsonEdit}
+                          collapsed={jsonCollapsed}
+                          hideWarning
+                          forceExpanded={mockForceExpanded}
+                          showCopyButton
+                        />
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -1203,34 +1239,32 @@ export function OperationDetail({
                       </div>
                     </div>
 
-                    {/* Editable script with disabled overlay */}
-                    {parsedMockData?.__mockScript !== undefined && (
-                      <div className="mt-3 relative">
-                        <p className="text-xs text-gray-400 mb-2">
-                          Script (editable):
-                        </p>
-                        <JavaScriptEditor
-                          code={parsedMockData.__mockScript}
-                          onChange={handleScriptEdit}
-                        />
-                        {/* Disabled overlay */}
-                        {!mockEnabled && (
-                          <div className="absolute inset-0 top-6 bg-leo-base/80 flex items-center justify-center rounded">
-                            <span className="text-white text-sm font-medium">
-                              Mock is disabled
-                            </span>
+                    {/* Only show script editor and help text when mock is enabled */}
+                    {mockEnabled &&
+                      parsedMockData?.__mockScript !== undefined && (
+                        <>
+                          <div className="mt-3">
+                            <p className="text-xs text-gray-400 mb-2">
+                              Script (editable):
+                            </p>
+                            <JavaScriptEditor
+                              code={parsedMockData.__mockScript}
+                              onChange={handleScriptEdit}
+                            />
                           </div>
-                        )}
-                      </div>
-                    )}
 
-                    <p className="text-xs text-gray-500 mt-3">
-                      Utilise <code className="text-purple-400">variables</code>
-                      , <code className="text-purple-400">operationName</code>,
-                      {" and "}
-                      <code className="text-purple-400">request</code> to create
-                      dynamic mock data.
-                    </p>
+                          <p className="text-xs text-gray-500 mt-3">
+                            Utilise{" "}
+                            <code className="text-purple-400">variables</code>,{" "}
+                            <code className="text-purple-400">
+                              operationName
+                            </code>
+                            ,{" and "}
+                            <code className="text-purple-400">request</code> to
+                            create dynamic mock data.
+                          </p>
+                        </>
+                      )}
                   </div>
                 )}
               </div>
@@ -1247,3 +1281,6 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// Memoized with deep equality check to prevent re-renders from parent polling updates
+export const OperationDetail = React.memo(OperationDetailInner, arePropsEqual);

@@ -161,21 +161,86 @@ body {
   border-left-color: rgba(40, 40, 58, 0.6) !important;
 }
 
-/* JSON Tree icon colors - grey default, lighter on hover */
-/* Exclude copy button SVGs which have their own styling */
-.editable-json-tree svg:not(.json-copy-button svg) {
-  fill: #4a4a4a !important;
-  stroke: #4a4a4a !important;
-  transition: fill 0.15s ease, stroke 0.15s ease;
-}
-
-.editable-json-tree svg:not(.json-copy-button svg):hover {
-  fill: #888888 !important;
-  stroke: #888888 !important;
-}
-
 /* Ensure copy button SVGs use their own colors */
 .json-copy-button svg {
   fill: none !important;
   stroke: currentColor !important;
 }
+
+/* JSON Editor input styling for dark theme */
+.editable-json-tree input {
+  background-color: #1a1a2e !important;
+  color: #e5e7eb !important;
+  border: 1px solid #3d3d5c !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  font-size: 0.75rem !important;
+  font-family: Monaco, Menlo, "Ubuntu Mono", monospace !important;
+  outline: none !important;
+}
+
+.editable-json-tree input:focus {
+  outline: 1px solid #818cf8 !important;
+  border-color: #818cf8 !important;
+}
+
+/* JSON Editor select/dropdown styling for dark theme */
+.editable-json-tree .jer-select,
+.editable-json-tree .jer-select-types,
+.editable-json-tree .jer-select .focus,
+.editable-json-tree .jer-select-types .focus {
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+}
+
+.editable-json-tree .jer-select .focus::after,
+.editable-json-tree .jer-select-types .focus::after {
+  display: none !important;
+}
+
+/* Reset boolean checkbox scale */
+.editable-json-tree .jer-input-boolean {
+  transform: none !important;
+}
+
+.editable-json-tree select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-color: #1a1a2e !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 4px center !important;
+  color: #e5e7eb !important;
+  border: 1px solid #3d3d5c !important;
+  border-radius: 4px !important;
+  padding: 2px 18px 2px 6px !important;
+  font-size: 0.7rem !important;
+  font-family: Monaco, Menlo, "Ubuntu Mono", monospace !important;
+  outline: none !important;
+  cursor: pointer !important;
+}
+
+.editable-json-tree select:focus {
+  border-color: #818cf8 !important;
+}
+
+.editable-json-tree select option {
+  background-color: #1a1a2e !important;
+  color: #e5e7eb !important;
+}
+
+/* Text selection highlight in JSON tree */
+.editable-json-tree ::selection {
+  background-color: rgba(129, 140, 248, 0.4) !important;
+  color: #fff !important;
+}
+
+/* Fix null value styling - uppercase, normal weight */
+.editable-json-tree .jer-value-null {
+  font-variant: normal !important;
+  font-weight: normal !important;
+  text-transform: uppercase !important;
+}
+

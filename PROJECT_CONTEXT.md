@@ -168,3 +168,123 @@ The official Apollo Client DevTools repository was analyzed to understand their 
 - Located at `apollo-client-devtools-main/` (local copy for reference)
 - Key insight: `queryInfo.getDiff().result` for merged cached data
 - Key insight: Polling with `pollInterval: 500` in `useQuery`
+
+---
+
+## Recent Updates (Session Notes)
+
+### Mock Data System
+
+The extension supports mocking GraphQL responses with two mock types:
+
+1. **JSON Mocks** - Static JSON data that replaces the operation result
+2. **JavaScript Mocks** - Dynamic scripts that can access `variables`, `operationName`, and `request` objects
+
+Mock data is stored in the wrapper format:
+```typescript
+// JSON mock - stored as raw JSON string
+const jsonMock = '{"data": {...}}'
+
+// JS mock - wrapped in special format
+const jsMock = JSON.stringify({
+  __mockType: "js",
+  __mockScript: "return { data: { ... } }"
+})
+```
+
+Mock state is persisted to `chrome.storage.local` and re-applied on page refresh via `reapplyMocks()`.
+
+### EditableJsonTree Component (`src/pages/panel/components/EditableJsonTree.tsx`)
+
+A React component wrapping `@microlink/react-json-view` with Leonardo.Ai theming.
+
+**Props:**
+- `data: unknown` - JSON data to display
+- `onEdit?: (updatedData: unknown) => void` - Called when user edits inline
+- `readOnly?: boolean` - Disable editing (default: false)
+- `collapsed?: number | boolean` - Collapse level (default: 2)
+- `hideWarning?: boolean` - Hide internal large file warning (for external warning placement)
+- `forceExpanded?: boolean` - External control for expanded state
+- `showCopyButton?: boolean` - Show copy button in top-right corner
+- `noPadding?: boolean` - Remove default `pt-2` top padding (use when no content above)
+
+**Large JSON Handling:**
+- `LARGE_JSON_THRESHOLD = 50000` (~50KB estimated size)
+- `estimateJsonSize(data)` - Estimates JSON size without full stringification
+- `useIsLargeJson(data)` - Hook to check if data exceeds threshold
+- `LargeJsonWarning` - Exported component for external warning rendering
+- Large files auto-collapse and show warning banner with "Expand All" button
+
+**Copy Button:**
+- Built into component via `showCopyButton` prop
+- Uses `navigator.clipboard.writeText()` with textarea fallback
+- SVG icons exempt from JSON tree grey icon styling via `.json-copy-button` class
+
+### JavaScriptEditor Component (`src/pages/panel/components/JavaScriptEditor.tsx`)
+
+CodeMirror 6-based JavaScript editor with:
+- Leonardo.Ai dark theme (`leoEditorTheme`, `leoHighlightStyle`)
+- Real-time syntax validation via `acorn` parser
+- Lint gutter with error/warning squiggles
+- Autocomplete for mock script variables (`variables`, `operationName`, `request`)
+- `validateJavaScript(code)` - Exported validation function
+
+### CSS Architecture (`src/pages/panel/Panel.css`)
+
+**JSON Tree Icon Styling:**
+```css
+/* Grey expand/collapse icons, excluding copy button */
+.editable-json-tree svg:not(.json-copy-button svg) {
+  fill: #4a4a4a !important;
+  stroke: #4a4a4a !important;
+}
+
+/* Copy button uses currentColor for Tailwind classes */
+.json-copy-button svg {
+  fill: none !important;
+  stroke: currentColor !important;
+}
+```
+
+### OperationDetail Component Structure
+
+The component uses extracted tab components for better organization:
+- `ResultTab` - Data tab with mock banner, error state, loading spinner
+- `ResponseTab` - HTTP response with status, headers, body
+- `CacheTab` - Apollo cached data
+- Mock Data tab - File picker, JSON/JS editor, enable/disable toggle
+
+**Tab Components Pattern:**
+Each tab component manages its own `forceExpanded` state for large JSON handling, receives props for display data and collapse settings.
+
+### Popup Session Detection (`src/pages/popup/Popup.tsx`)
+
+The popup checks for valid Leonardo.Ai session cookies before displaying user data:
+```typescript
+async function checkSessionCookie(): Promise<boolean> {
+  const cookies = await chrome.cookies.getAll({ domain: "app.leonardo.ai" });
+  return cookies.some(c =>
+    c.name.includes("session-token") ||
+    c.name.includes("SessionPresent")
+  );
+}
+```
+
+### Injected Script User Data Capture (`public/injected.js`)
+
+Captures user data from `__NEXT_DATA__` and GraphQL responses:
+- Listens for `GetSelfUser` GraphQL operations
+- Posts `USER_DATA_CAPTURED` and `USER_LOGGED_OUT` messages
+- Content script persists to `chrome.storage.local`
+
+### Settings System
+
+Settings stored in `Panel.tsx` and persisted:
+```typescript
+interface Settings {
+  autoExpandJson: boolean;   // Expand all JSON nodes by default
+  highlightChakra: boolean;  // Inject Chakra component highlighter
+}
+```
+
+Chakra highlighter injects colored outlines around Chakra UI components for debugging.
