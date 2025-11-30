@@ -122,6 +122,33 @@ function CopyableField({ label, value }: { label: string; value: string }) {
   );
 }
 
+// Leonardo.Ai domain for cookie checks
+const LEONARDO_DOMAIN = "app.leonardo.ai";
+
+// Check if user has a valid session cookie
+async function checkSessionCookie(): Promise<boolean> {
+  try {
+    // Get all cookies for Leonardo domain and check for session tokens
+    // next-auth uses chunked cookies for large tokens: .session-token.0, .session-token.1, etc.
+    const cookies = await chrome.cookies.getAll({
+      domain: LEONARDO_DOMAIN,
+    });
+
+    // Look for any cookie that contains "session-token" in the name
+    const hasSessionCookie = cookies.some(
+      (cookie) =>
+        cookie.name.includes("session-token") ||
+        cookie.name.includes("SessionPresent")
+    );
+
+    return hasSessionCookie;
+  } catch (error) {
+    console.error("[Leonardo.Ai] Failed to check session cookie:", error);
+    // If we can't check cookies, assume session is valid to avoid false positives
+    return true;
+  }
+}
+
 export default function Popup() {
   const [user, setUser] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,15 +156,33 @@ export default function Popup() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
-    chrome.storage.local
-      .get(["leoUserData", "leoUserDataTimestamp"])
-      .then((result) => {
-        if (result.leoUserData) {
+    async function loadUserData() {
+      const result = await chrome.storage.local.get([
+        "leoUserData",
+        "leoUserDataTimestamp",
+      ]);
+
+      if (result.leoUserData) {
+        // Check if user still has a valid session
+        const hasSession = await checkSessionCookie();
+
+        if (hasSession) {
           setUser(result.leoUserData);
           setTimestamp(result.leoUserDataTimestamp);
+        } else {
+          // Session expired/logged out - clear stored data
+          console.log("[Leonardo.Ai] Session expired, clearing user data");
+          await chrome.storage.local.remove([
+            "leoUserData",
+            "leoUserDataTimestamp",
+          ]);
         }
-        setLoading(false);
-      });
+      }
+
+      setLoading(false);
+    }
+
+    loadUserData();
 
     // Listen for updates
     const handleStorageChange = (changes: {
@@ -197,13 +242,15 @@ export default function Popup() {
   if (!user) {
     return (
       <div className="w-[400px] bg-leo-base text-gray-200 font-sans text-sm">
+        <div className="flex items-center justify-center px-4 pt-5 pb-4 bg-leo-elevated border-b border-leo-border">
+          <img src="/logo-text.png" className="h-8" alt="Leonardo.Ai" />
+        </div>
         <div className="flex flex-col items-center justify-center py-8 px-5 text-center">
-          <img src={logo} className="w-16 h-16" alt="Leonardo.Ai" />
-          <h2 className="text-base font-semibold text-gray-200 mt-4 mb-2">
-            No User Data
+          <h2 className="text-base font-semibold text-gray-200 mb-2">
+            Not logged in
           </h2>
           <p className="text-gray-500 text-xs leading-relaxed">
-            Visit Leonardo.Ai and sign in to see your account info here.
+            Log in to Leonardo.Ai to see your account info here.
           </p>
         </div>
       </div>

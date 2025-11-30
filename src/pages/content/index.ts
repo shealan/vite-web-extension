@@ -28,6 +28,14 @@ function setupMessageRelay() {
       });
     }
 
+    // Handle logout - clear stored user data
+    if (event.data.type === 'USER_LOGGED_OUT') {
+      chrome.storage.local.remove(['leoUserData', 'leoUserDataTimestamp']).catch(() => {
+        // Storage might not be available
+      });
+      console.log('[Leonardo.Ai] User logged out, cleared stored data');
+    }
+
     // Forward to background script
     chrome.runtime.sendMessage({
       source: SOURCE,

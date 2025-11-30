@@ -639,6 +639,13 @@
         typeof init.body === "string" &&
         init.body.includes('"query"'));
 
+    // Detect logout - next-auth signout endpoint
+    if (url.includes('/api/auth/signout') || url.includes('/api/auth/callback/signout')) {
+      console.log('[Leonardo.Ai] Logout detected, clearing user data');
+      postMessage('USER_LOGGED_OUT', { timestamp: Date.now() });
+      return originalFetch.apply(this, arguments);
+    }
+
     if (!isGraphQL) {
       return originalFetch.apply(this, arguments);
     }
