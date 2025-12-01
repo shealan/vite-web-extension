@@ -5,11 +5,7 @@ import {
   PanelResizeHandle,
 } from "react-resizable-panels";
 import { GraphQLOperation } from "@src/shared/types";
-import {
-  EditableJsonTree,
-  useIsLargeJson,
-  LargeJsonWarning,
-} from "./EditableJsonTree";
+import { EditableJsonTree } from "./EditableJsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
 import { JavaScriptEditor } from "./JavaScriptEditor";
 
@@ -93,10 +89,6 @@ function ResultTab({
   parsedMockData,
   jsonCollapsed,
 }: ResultTabProps) {
-  const [forceExpanded, setForceExpanded] = useState(false);
-  const isLargeJson = useIsLargeJson(displayResult);
-  const showLargeWarning = isLargeJson && !forceExpanded && !!displayResult;
-
   return (
     <div className="json-tree w-full">
       {/* Warning banners - full width, above everything */}
@@ -119,9 +111,6 @@ function ResultTab({
             An error was returned by this {operation.type} operation
           </p>
         </div>
-      )}
-      {showLargeWarning && (
-        <LargeJsonWarning onExpand={() => setForceExpanded(true)} />
       )}
 
       {/* JSON content with copy button aligned to it */}
@@ -154,8 +143,6 @@ function ResultTab({
           data={displayResult}
           readOnly
           collapsed={jsonCollapsed}
-          hideWarning
-          forceExpanded={forceExpanded}
           showCopyButton
         />
       ) : (
@@ -177,10 +164,6 @@ function ResponseTab({
   displayResult,
   jsonCollapsed,
 }: ResponseTabProps) {
-  const [forceExpanded, setForceExpanded] = useState(false);
-  const isLargeJson = useIsLargeJson(displayResult);
-  const showLargeWarning = isLargeJson && !forceExpanded && !!displayResult;
-
   if (!response) {
     return (
       <div className="text-gray-500">
@@ -227,17 +210,11 @@ function ResponseTab({
       {/* Body */}
       <div>
         <h3 className="text-xs font-medium text-gray-400 mb-2">Body</h3>
-        {/* Large file warning - full width, above JSON */}
-        {showLargeWarning && (
-          <LargeJsonWarning onExpand={() => setForceExpanded(true)} />
-        )}
         {displayResult ? (
           <EditableJsonTree
             data={displayResult}
             readOnly
             collapsed={jsonCollapsed}
-            hideWarning
-            forceExpanded={forceExpanded}
             showCopyButton
           />
         ) : (
@@ -257,10 +234,6 @@ interface CacheTabProps {
 }
 
 function CacheTab({ operationCache, jsonCollapsed }: CacheTabProps) {
-  const [forceExpanded, setForceExpanded] = useState(false);
-  const isLargeJson = useIsLargeJson(operationCache);
-  const showLargeWarning = isLargeJson && !forceExpanded && !!operationCache;
-
   if (!operationCache) {
     return (
       <div className="text-gray-500">
@@ -275,18 +248,10 @@ function CacheTab({ operationCache, jsonCollapsed }: CacheTabProps) {
 
   return (
     <div className="json-tree w-full">
-      {/* Large file warning - full width, above JSON */}
-      {showLargeWarning && (
-        <LargeJsonWarning onExpand={() => setForceExpanded(true)} />
-      )}
-
-      {/* JSON content with copy button */}
       <EditableJsonTree
         data={operationCache}
         readOnly
         collapsed={jsonCollapsed}
-        hideWarning
-        forceExpanded={forceExpanded}
         showCopyButton
       />
     </div>
@@ -344,7 +309,6 @@ function OperationDetailInner({
   const [rightTab, setRightTab] = useState<RightTab>("response");
   const [mockError, setMockError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [mockForceExpanded, setMockForceExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use persisted file info, or fall back to null
@@ -386,9 +350,6 @@ function OperationDetailInner({
 
   // For display, we show the actual mock data (not the wrapper for JS)
   const hasMockData = parsedMockData !== null;
-
-  // Check if mock data is large (for JSON mocks only)
-  const isMockDataLarge = useIsLargeJson(parsedMockData);
 
   // Process file content and update mock data
   const processFileContent = useCallback(
@@ -1089,26 +1050,12 @@ function OperationDetailInner({
 
                       {/* Only show JSON content when mock is enabled */}
                       {mockEnabled && (
-                        <>
-                          {/* Large file warning - full width, above JSON */}
-                          {isMockDataLarge && !mockForceExpanded && (
-                            <div className="mt-3">
-                              <LargeJsonWarning
-                                onExpand={() => setMockForceExpanded(true)}
-                              />
-                            </div>
-                          )}
-
-                          {/* Editable JSON tree with copy button */}
-                          <EditableJsonTree
-                            data={parsedMockData}
-                            onEdit={handleJsonEdit}
-                            collapsed={jsonCollapsed}
-                            hideWarning
-                            forceExpanded={mockForceExpanded}
-                            showCopyButton
-                          />
-                        </>
+                        <EditableJsonTree
+                          data={parsedMockData}
+                          onEdit={handleJsonEdit}
+                          collapsed={jsonCollapsed}
+                          showCopyButton
+                        />
                       )}
                     </div>
                   )}

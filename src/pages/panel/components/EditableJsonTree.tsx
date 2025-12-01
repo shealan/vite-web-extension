@@ -469,7 +469,7 @@ export const LargeJsonWarning = React.memo(function LargeJsonWarning({
   onExpand,
 }: LargeJsonWarningProps) {
   return (
-    <div className="mb-2 p-2 bg-leo-elevated border border-leo-border rounded text-xs flex items-center justify-between font-sans">
+    <div className="mb-2 p-2 pl-3 bg-leo-elevated border border-leo-border rounded text-xs flex items-center justify-between font-sans">
       <span className="text-gray-400">
         Large JSON file — collapsed for performance
       </span>
@@ -529,34 +529,36 @@ function EditableJsonTreeInner({
   const handleExpand = useCallback(() => setInternalForceExpanded(true), []);
 
   return (
-    <div className={`w-full editable-json-tree relative`}>
-      {showCopyButton && (
-        <div className={`absolute top-2 right-2 z-10 json-copy-button`}>
-          <CopyButton data={data} />
-        </div>
-      )}
+    <div className="w-full editable-json-tree">
       {isLargeJson && !forceExpanded && !hideWarning && (
         <LargeJsonWarning onExpand={handleExpand} />
       )}
-      <JsonEditor
-        data={data as object}
-        onUpdate={readOnly ? undefined : handleUpdate}
-        theme={leoTheme}
-        icons={customIcons}
-        collapse={effectiveCollapse}
-        indent={2}
-        showCollectionCount="when-closed"
-        collapseAnimationTime={0}
-        rootName=""
-        enableClipboard={false}
-        restrictEdit={readOnly}
-        restrictDelete={readOnly}
-        restrictAdd={readOnly}
-        restrictTypeSelection={readOnly}
-        minWidth="100%"
-        rootFontSize="0.75rem"
-        TextEditor={readOnly ? undefined : InlineTextEditor}
-      />
+      <div className="relative">
+        {showCopyButton && (
+          <div className="absolute top-2 right-2 z-10 json-copy-button">
+            <CopyButton data={data} />
+          </div>
+        )}
+        <JsonEditor
+          data={data as object}
+          onUpdate={readOnly ? undefined : handleUpdate}
+          theme={leoTheme}
+          icons={customIcons}
+          collapse={effectiveCollapse}
+          indent={2}
+          showCollectionCount="when-closed"
+          collapseAnimationTime={0}
+          rootName=""
+          enableClipboard={false}
+          restrictEdit={readOnly}
+          restrictDelete={readOnly}
+          restrictAdd={readOnly}
+          restrictTypeSelection={readOnly}
+          minWidth="100%"
+          rootFontSize="0.75rem"
+          TextEditor={readOnly ? undefined : InlineTextEditor}
+        />
+      </div>
     </div>
   );
 }
