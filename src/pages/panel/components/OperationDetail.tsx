@@ -1115,7 +1115,7 @@ function OperationDetailInner({
 
                   {/* JS Mock - show script info */}
                   {hasMockData && mockType === "js" && (
-                    <div className="flex flex-col pb-3">
+                    <div className="flex flex-col">
                       <div
                         className={`relative p-3 border rounded ${
                           mockEnabled
@@ -1275,7 +1275,7 @@ function OperationDetailInner({
                       {mockEnabled &&
                         parsedMockData?.__mockScript !== undefined && (
                           <>
-                            <div className="mt-3">
+                            <div className="mt-4">
                               <p className="text-xs text-gray-400 mb-2">
                                 Script (editable):
                               </p>
