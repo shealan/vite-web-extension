@@ -18,6 +18,7 @@ interface UserDetails {
     tokenRenewalDate?: string;
   }>;
   interests?: Array<{ interest: string }>;
+  canvaUserDetails?: unknown[];
 }
 
 // Copy icon SVG
@@ -275,11 +276,21 @@ export default function Popup() {
           <span className="text-leo-purple-400 font-semibold text-xl">@</span>
           {user.username}
         </span>
-        {details?.plan && (
-          <span className="flex-shrink-0 text-[11px] font-semibold uppercase tracking-wide text-leo-purple-400 bg-purple-700/20 px-2.5 py-1 rounded">
-            {details.plan}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {details?.plan && (
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-white px-2.5 py-1 rounded bg-linear-to-br from-[#8b5cf6] via-[#a855f7] to-[#ec4899]">
+              {details.plan}
+            </span>
+          )}
+          {user.canvaUserDetails && user.canvaUserDetails.length > 0 && (
+            <span
+              className="text-[11px] font-semibold text-white px-2 py-1 rounded bg-linear-to-br from-[#00c4cc] via-[#7d2ae8] to-[#7d2ae8]"
+              title="Canva User"
+            >
+              C
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Settings Modal */}
