@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { JsonEditor, UpdateFunction } from "json-edit-react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
@@ -14,46 +20,53 @@ interface TextEditorProps {
   onKeyDown: (e: React.KeyboardEvent) => void;
 }
 
-// Highlight style for inline JSON editing
+// Highlight style for inline JSON editing - matches CodeMirror/JavaScriptEditor
 const inlineHighlightStyle = HighlightStyle.define([
-  { tag: tags.string, color: "#6ee7b7" },
-  { tag: tags.number, color: "#d4a574" },
-  { tag: tags.bool, color: "#c084fc" },
-  { tag: tags.null, color: "#c084fc" },
-  { tag: tags.propertyName, color: "#818cf8" },
-  { tag: tags.punctuation, color: "#6b7280" },
+  { tag: tags.string, color: "#7ec699" },
+  { tag: tags.number, color: "#d4a76a" },
+  { tag: tags.bool, color: "#c9a0dc" },
+  { tag: tags.null, color: "#c9a0dc" },
+  { tag: tags.propertyName, color: "#81a2be" },
+  { tag: tags.punctuation, color: "#969896" },
 ]);
 
 // Inline editor theme (compact, no gutters)
-const inlineEditorTheme = EditorView.theme({
-  "&": {
-    backgroundColor: "#1a1a2e",
-    color: "#c5c8c6",
-    fontSize: "0.75rem",
-    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+const inlineEditorTheme = EditorView.theme(
+  {
+    "&": {
+      backgroundColor: "#1a1a2e",
+      color: "#c5c8c6",
+      fontSize: "0.75rem",
+      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+    },
+    ".cm-content": {
+      caretColor: "#e5e7eb",
+      padding: "4px 8px",
+      minHeight: "auto",
+    },
+    ".cm-scroller": {
+      minHeight: "auto",
+      overflow: "auto",
+    },
+    ".cm-cursor": {
+      borderLeftColor: "#e5e7eb",
+    },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+      backgroundColor: "rgba(125, 211, 252, 0.3)",
+    },
+    "&.cm-focused": {
+      outline: "1px solid #81a2be",
+    },
   },
-  ".cm-content": {
-    caretColor: "#e5e7eb",
-    padding: "4px 8px",
-    minHeight: "auto",
-  },
-  ".cm-scroller": {
-    minHeight: "auto",
-    overflow: "auto",
-  },
-  ".cm-cursor": {
-    borderLeftColor: "#e5e7eb",
-  },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-    backgroundColor: "rgba(125, 211, 252, 0.3)",
-  },
-  "&.cm-focused": {
-    outline: "1px solid #818cf8",
-  },
-}, { dark: true });
+  { dark: true }
+);
 
 // CodeMirror-based inline text editor for json-edit-react - memoized to prevent re-creation
-const InlineTextEditor = React.memo(function InlineTextEditor({ value, onChange, onKeyDown }: TextEditorProps) {
+const InlineTextEditor = React.memo(function InlineTextEditor({
+  value,
+  onChange,
+  onKeyDown,
+}: TextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   // Use refs to avoid stale closures and prevent re-creating the editor
@@ -268,65 +281,122 @@ const iconColor = "#6b7280"; // gray-500
 
 const customIcons = {
   ok: (
-    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      style={iconStyle}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={iconColor}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <polyline points="20 6 9 17 4 12" />
     </svg>
   ),
   cancel: (
-    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      style={iconStyle}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={iconColor}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
   add: (
-    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      style={iconStyle}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={iconColor}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   ),
   edit: (
-    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      style={iconStyle}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={iconColor}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
   ),
   delete: (
-    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      style={iconStyle}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={iconColor}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <polyline points="3 6 5 6 21 6" />
       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     </svg>
   ),
   copy: (
-    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      style={iconStyle}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={iconColor}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
     </svg>
   ),
   chevron: (
-    <svg style={{ width: 12, height: 12 }} viewBox="0 0 24 24" fill="none" stroke="#4a4a4a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
+    <svg
+      style={{ width: 12, height: 12 }}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#6b7280"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="6 9 12 15 18 9" />
     </svg>
   ),
 };
 
 // Custom theme matching Leonardo.Ai design system
-// Colors aligned with CodeMirror syntax highlighting, boosted for dark backgrounds
+// Colors aligned with CodeMirror/JavaScriptEditor syntax highlighting
 const leoTheme = {
-  // Container styles
+  // Container styles - use leo-elevated background
   container: {
-    backgroundColor: "transparent",
+    backgroundColor: "#101622", // --leo-bg-elevated
     fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+    borderRadius: "6px",
   },
-  // Property styles (keys) - soft blue, brightened for contrast
-  property: "#93b4d4",
-  // Value styles by type - brightened for dark backgrounds
-  string: "#98d6b1", // brighter green
-  number: "#e4b87a", // brighter amber
-  boolean: "#d9b8ec", // brighter purple/pink
-  null: "#d9b8ec", // brighter purple/pink
-  undefined: "#d9b8ec",
-  // Bracket colors - lighter gray for visibility
-  bracket: "#a8a8a6",
+  // Property styles (keys) - matches CodeMirror propertyName
+  property: "#81a2be",
+  // Value styles by type - matches CodeMirror highlighting
+  string: "#7ec699", // matches CodeMirror string
+  number: "#d4a76a", // matches CodeMirror number
+  boolean: "#c9a0dc", // matches CodeMirror bool
+  null: "#c9a0dc", // matches CodeMirror null
+  undefined: "#c9a0dc",
+  // Bracket colors - matches CodeMirror punctuation
+  bracket: "#969896",
   // Collection count color (e.g., "[5 items]") - muted text
   itemCount: "#6b7280",
   // Input styles (for inline editing of primitive values)
@@ -344,8 +414,8 @@ const leoTheme = {
     backgroundColor: "#1a1a2e",
     border: "1px solid #81a2be",
   },
-  // Icon colors - subtle gray
-  iconCollection: "#4a4a4a",
+  // Icon colors - muted text gray
+  iconCollection: "#6b7280",
   iconEdit: "#6b7280",
   iconDelete: "#6b7280",
   iconAdd: "#6b7280",
@@ -395,7 +465,9 @@ interface LargeJsonWarningProps {
   onExpand: () => void;
 }
 
-export const LargeJsonWarning = React.memo(function LargeJsonWarning({ onExpand }: LargeJsonWarningProps) {
+export const LargeJsonWarning = React.memo(function LargeJsonWarning({
+  onExpand,
+}: LargeJsonWarningProps) {
   return (
     <div className="mb-2 p-2 bg-leo-elevated border border-leo-border rounded text-xs flex items-center justify-between font-sans">
       <span className="text-gray-400">
@@ -437,9 +509,12 @@ function EditableJsonTreeInner({
   }, [data]);
 
   // Handle data updates from the editor - memoized to prevent re-renders
-  const handleUpdate: UpdateFunction = useCallback(({ newData }) => {
-    onEdit?.(newData);
-  }, [onEdit]);
+  const handleUpdate: UpdateFunction = useCallback(
+    ({ newData }) => {
+      onEdit?.(newData);
+    },
+    [onEdit]
+  );
 
   // For large JSON, collapse everything by default unless user expands
   // json-edit-react uses collapse prop as depth level (number) or boolean
@@ -454,13 +529,9 @@ function EditableJsonTreeInner({
   const handleExpand = useCallback(() => setInternalForceExpanded(true), []);
 
   return (
-    <div
-      className={`w-full editable-json-tree relative ${noPadding ? "" : "pt-2"}`}
-    >
+    <div className={`w-full editable-json-tree relative`}>
       {showCopyButton && (
-        <div
-          className={`absolute ${noPadding ? "top-0" : "top-2"} right-0 z-10 json-copy-button`}
-        >
+        <div className={`absolute top-2 right-2 z-10 json-copy-button`}>
           <CopyButton data={data} />
         </div>
       )}
@@ -519,4 +590,7 @@ function arePropsEqual(
 }
 
 // Memoized with deep equality check to prevent re-renders from parent polling updates
-export const EditableJsonTree = React.memo(EditableJsonTreeInner, arePropsEqual);
+export const EditableJsonTree = React.memo(
+  EditableJsonTreeInner,
+  arePropsEqual
+);

@@ -195,7 +195,7 @@ function ResponseTab({
   }
 
   return (
-    <div className="space-y-4 pr-4">
+    <div className="space-y-4">
       {/* Status */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
@@ -310,14 +310,19 @@ function arePropsEqual(
   }
 
   // Check mockFileInfo
-  if (prevProps.mockFileInfo?.fileName !== nextProps.mockFileInfo?.fileName ||
-      prevProps.mockFileInfo?.fileSize !== nextProps.mockFileInfo?.fileSize) {
+  if (
+    prevProps.mockFileInfo?.fileName !== nextProps.mockFileInfo?.fileName ||
+    prevProps.mockFileInfo?.fileSize !== nextProps.mockFileInfo?.fileSize
+  ) {
     return false;
   }
 
   // Deep compare operation - use JSON.stringify for stable comparison
   try {
-    return JSON.stringify(prevProps.operation) === JSON.stringify(nextProps.operation);
+    return (
+      JSON.stringify(prevProps.operation) ===
+      JSON.stringify(nextProps.operation)
+    );
   } catch {
     return prevProps.operation === nextProps.operation;
   }
@@ -585,221 +590,230 @@ function OperationDetailInner({
       </div>
 
       {/* Two-panel layout */}
-      <PanelGroup direction="horizontal" autoSaveId="leo-detail-panels" className="flex-1">
+      <PanelGroup
+        direction="horizontal"
+        autoSaveId="leo-detail-panels"
+        className="flex-1"
+      >
         {/* Left Panel - Query/Variables/Cache */}
         <ResizablePanel defaultSize={50} minSize={25} maxSize={75}>
           <div className="h-full flex flex-col">
-          {/* Left Tabs */}
-          <div className="flex border-b border-leo-border">
-            {leftTabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setLeftTab(tab.id)}
-                className={`px-4 py-2 text-xs font-medium transition-colors ${
-                  leftTab === tab.id
-                    ? "text-purple-400 border-b-2 border-purple-500"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+            {/* Left Tabs */}
+            <div className="flex border-b border-leo-border">
+              {leftTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setLeftTab(tab.id)}
+                  className={`px-4 py-2 text-xs font-medium transition-colors ${
+                    leftTab === tab.id
+                      ? "text-purple-400 border-b-2 border-purple-500"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-          {/* Left Content */}
-          <div className="flex-1 overflow-auto p-4 json-panel">
-            {leftTab === "request" && (
-              <div className="space-y-4">
-                {operation.request ? (
-                  <>
-                    {/* URL and Method */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 text-xs rounded font-medium bg-blue-500/20 text-blue-400">
-                          {operation.request.method}
-                        </span>
-                        <span className="text-xs text-gray-300 font-mono break-all">
-                          {operation.request.url}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Headers */}
-                    <div>
-                      <h3 className="text-xs font-medium text-gray-400 mb-2">
-                        Headers
-                      </h3>
-                      <div className="bg-leo-elevated rounded p-3">
-                        <HeadersTable headers={operation.request.headers} />
-                      </div>
-                    </div>
-
-                    {/* Body */}
-                    <div>
-                      <h3 className="text-xs font-medium text-gray-400 mb-2">
-                        Body
-                      </h3>
-                      {operation.request.body ? (
-                        (() => {
-                          try {
-                            const parsed = JSON.parse(operation.request.body);
-                            return (
-                              <EditableJsonTree
-                                data={parsed}
-                                readOnly
-                                collapsed={jsonCollapsed}
-                                showCopyButton
-                              />
-                            );
-                          } catch {
-                            return (
-                              <div className="bg-leo-elevated rounded p-3">
-                                <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap break-all">
-                                  {operation.request.body}
-                                </pre>
-                              </div>
-                            );
-                          }
-                        })()
-                      ) : (
-                        <div className="bg-leo-elevated rounded p-3">
-                          <span className="text-gray-500 text-xs">No body</span>
+            {/* Left Content */}
+            <div className="flex-1 overflow-auto p-3 json-panel">
+              {leftTab === "request" && (
+                <div className="space-y-4">
+                  {operation.request ? (
+                    <>
+                      {/* URL and Method */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 text-xs rounded font-medium bg-blue-500/20 text-blue-400">
+                            {operation.request.method}
+                          </span>
+                          <span className="text-xs text-gray-300 font-mono break-all">
+                            {operation.request.url}
+                          </span>
                         </div>
-                      )}
+                      </div>
+
+                      {/* Headers */}
+                      <div>
+                        <h3 className="text-xs font-medium text-gray-400 mb-2">
+                          Headers
+                        </h3>
+                        <div className="bg-leo-elevated rounded p-3">
+                          <HeadersTable headers={operation.request.headers} />
+                        </div>
+                      </div>
+
+                      {/* Body */}
+                      <div>
+                        <h3 className="text-xs font-medium text-gray-400 mb-2">
+                          Body
+                        </h3>
+                        {operation.request.body ? (
+                          (() => {
+                            try {
+                              const parsed = JSON.parse(operation.request.body);
+                              return (
+                                <EditableJsonTree
+                                  data={parsed}
+                                  readOnly
+                                  collapsed={jsonCollapsed}
+                                  showCopyButton
+                                />
+                              );
+                            } catch {
+                              return (
+                                <div className="bg-leo-elevated rounded p-3">
+                                  <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap break-all">
+                                    {operation.request.body}
+                                  </pre>
+                                </div>
+                              );
+                            }
+                          })()
+                        ) : (
+                          <div className="bg-leo-elevated rounded p-3">
+                            <span className="text-gray-500 text-xs">
+                              No body
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-gray-500">
+                      <p>No request data available.</p>
+                      <p className="mt-2 text-xs">
+                        Request data is captured when the operation makes a
+                        network request. It may not be available for cached
+                        queries or if the request hasn't been made yet.
+                      </p>
                     </div>
-                  </>
-                ) : (
-                  <div className="text-gray-500">
-                    <p>No request data available.</p>
-                    <p className="mt-2 text-xs">
-                      Request data is captured when the operation makes a
-                      network request. It may not be available for cached
-                      queries or if the request hasn't been made yet.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
 
-            {leftTab === "query" && (
-              <GraphQLHighlight query={operation.query} />
-            )}
+              {leftTab === "query" && (
+                <GraphQLHighlight query={operation.query} />
+              )}
 
-            {leftTab === "variables" && (
-              <div className="json-tree w-full">
-                {operation.variables &&
-                Object.keys(operation.variables).length > 0 ? (
-                  <EditableJsonTree
-                    data={operation.variables}
-                    readOnly
-                    collapsed={jsonCollapsed}
-                    showCopyButton
-                    noPadding
-                  />
-                ) : (
-                  <span className="text-gray-500">No variables</span>
-                )}
-              </div>
-            )}
+              {leftTab === "variables" && (
+                <div className="json-tree w-full">
+                  {operation.variables &&
+                  Object.keys(operation.variables).length > 0 ? (
+                    <EditableJsonTree
+                      data={operation.variables}
+                      readOnly
+                      collapsed={jsonCollapsed}
+                      showCopyButton
+                    />
+                  ) : (
+                    <span className="text-gray-500">No variables</span>
+                  )}
+                </div>
+              )}
 
-            {leftTab === "policy" && (
-              <div className="space-y-2 text-xs font-mono">
-                {operation.options ? (
-                  <>
-                    {/* fetchPolicy */}
-                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
-                      <span className="text-gray-400">fetchPolicy</span>
-                      <span className="text-purple-400 ">
-                        {operation.options.fetchPolicy
-                          ? `"${operation.options.fetchPolicy}"`
-                          : "null"}
-                      </span>
-                    </div>
-
-                    {/* errorPolicy */}
-                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
-                      <span className="text-gray-400">errorPolicy</span>
-                      <span className="text-purple-400">
-                        {operation.options.errorPolicy
-                          ? `"${operation.options.errorPolicy}"`
-                          : "null"}
-                      </span>
-                    </div>
-
-                    {/* notifyOnNetworkStatusChange */}
-                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
-                      <span className="text-gray-400">
-                        notifyOnNetworkStatusChange
-                      </span>
-                      <span
-                        className={`${
-                          operation.options.notifyOnNetworkStatusChange
-                            ? "text-green-400"
-                            : "text-orange-400"
-                        }`}
-                      >
-                        {operation.options.notifyOnNetworkStatusChange
-                          ? "true"
-                          : "false"}
-                      </span>
-                    </div>
-
-                    {/* returnPartialData */}
-                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
-                      <span className="text-gray-400">returnPartialData</span>
-                      <span
-                        className={`${
-                          operation.options.returnPartialData
-                            ? "text-green-400"
-                            : "text-orange-400"
-                        }`}
-                      >
-                        {operation.options.returnPartialData ? "true" : "false"}
-                      </span>
-                    </div>
-
-                    {/* partialRefetch */}
-                    <div className="flex items-center justify-between py-2 border-b border-leo-border">
-                      <span className="text-gray-400">partialRefetch</span>
-                      <span
-                        className={`${
-                          operation.options.partialRefetch
-                            ? "text-green-400"
-                            : "text-orange-400"
-                        }`}
-                      >
-                        {operation.options.partialRefetch ? "true" : "false"}
-                      </span>
-                    </div>
-
-                    {/* canonizeResults */}
-                    {operation.options.canonizeResults !== null && (
+              {leftTab === "policy" && (
+                <div className="space-y-2 text-xs font-mono">
+                  {operation.options ? (
+                    <>
+                      {/* fetchPolicy */}
                       <div className="flex items-center justify-between py-2 border-b border-leo-border">
-                        <span className="text-gray-400">canonizeResults</span>
+                        <span className="text-gray-400">fetchPolicy</span>
+                        <span className="text-purple-400 ">
+                          {operation.options.fetchPolicy
+                            ? `"${operation.options.fetchPolicy}"`
+                            : "null"}
+                        </span>
+                      </div>
+
+                      {/* errorPolicy */}
+                      <div className="flex items-center justify-between py-2 border-b border-leo-border">
+                        <span className="text-gray-400">errorPolicy</span>
+                        <span className="text-purple-400">
+                          {operation.options.errorPolicy
+                            ? `"${operation.options.errorPolicy}"`
+                            : "null"}
+                        </span>
+                      </div>
+
+                      {/* notifyOnNetworkStatusChange */}
+                      <div className="flex items-center justify-between py-2 border-b border-leo-border">
+                        <span className="text-gray-400">
+                          notifyOnNetworkStatusChange
+                        </span>
                         <span
                           className={`${
-                            operation.options.canonizeResults
+                            operation.options.notifyOnNetworkStatusChange
                               ? "text-green-400"
                               : "text-orange-400"
                           }`}
                         >
-                          {operation.options.canonizeResults ? "true" : "false"}
+                          {operation.options.notifyOnNetworkStatusChange
+                            ? "true"
+                            : "false"}
                         </span>
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-gray-500">
-                    <p>No policy options available.</p>
-                    <p className="mt-2 text-xs">
-                      Policy options are only available for queries. Mutations
-                      do not have these options.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+
+                      {/* returnPartialData */}
+                      <div className="flex items-center justify-between py-2 border-b border-leo-border">
+                        <span className="text-gray-400">returnPartialData</span>
+                        <span
+                          className={`${
+                            operation.options.returnPartialData
+                              ? "text-green-400"
+                              : "text-orange-400"
+                          }`}
+                        >
+                          {operation.options.returnPartialData
+                            ? "true"
+                            : "false"}
+                        </span>
+                      </div>
+
+                      {/* partialRefetch */}
+                      <div className="flex items-center justify-between py-2 border-b border-leo-border">
+                        <span className="text-gray-400">partialRefetch</span>
+                        <span
+                          className={`${
+                            operation.options.partialRefetch
+                              ? "text-green-400"
+                              : "text-orange-400"
+                          }`}
+                        >
+                          {operation.options.partialRefetch ? "true" : "false"}
+                        </span>
+                      </div>
+
+                      {/* canonizeResults */}
+                      {operation.options.canonizeResults !== null && (
+                        <div className="flex items-center justify-between py-2 border-b border-leo-border">
+                          <span className="text-gray-400">canonizeResults</span>
+                          <span
+                            className={`${
+                              operation.options.canonizeResults
+                                ? "text-green-400"
+                                : "text-orange-400"
+                            }`}
+                          >
+                            {operation.options.canonizeResults
+                              ? "true"
+                              : "false"}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-gray-500">
+                      <p>No policy options available.</p>
+                      <p className="mt-2 text-xs">
+                        Policy options are only available for queries. Mutations
+                        do not have these options.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </ResizablePanel>
 
@@ -808,322 +822,190 @@ function OperationDetailInner({
         {/* Right Panel - Result/Cache */}
         <ResizablePanel defaultSize={50} minSize={25} maxSize={75}>
           <div className="h-full flex flex-col">
-          {/* Right Tabs */}
-          <div className="flex border-b border-leo-border">
-            {rightTabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setRightTab(tab.id)}
-                className={`px-4 py-2 text-xs font-medium transition-colors ${
-                  rightTab === tab.id
-                    ? "text-purple-400 border-b-2 border-purple-500"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+            {/* Right Tabs */}
+            <div className="flex border-b border-leo-border">
+              {rightTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setRightTab(tab.id)}
+                  className={`px-4 py-2 text-xs font-medium transition-colors ${
+                    rightTab === tab.id
+                      ? "text-purple-400 border-b-2 border-purple-500"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-          {/* Right Content */}
-          <div className="flex-1 overflow-auto p-4 json-panel">
-            {rightTab === "response" && (
-              <ResponseTab
-                response={operation.response}
-                displayResult={displayResult}
-                jsonCollapsed={jsonCollapsed}
-              />
-            )}
-
-            {rightTab === "result" && (
-              <ResultTab
-                displayResult={displayResult}
-                hasMockData={hasMockData}
-                mockEnabled={mockEnabled}
-                mockType={mockType}
-                operation={operation}
-                parsedMockData={parsedMockData}
-                jsonCollapsed={jsonCollapsed}
-              />
-            )}
-
-            {rightTab === "cache" && (
-              <CacheTab
-                operationCache={operationCache}
-                jsonCollapsed={jsonCollapsed}
-              />
-            )}
-
-            {rightTab === "mock" && (
-              <div className="flex flex-col h-full">
-                {/* Hidden file input (fallback for browsers without File System Access API) */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json,.js,application/json,text/javascript"
-                  onChange={handleFileInputChange}
-                  className="hidden"
-                  id={`mock-file-${operation.id}`}
+            {/* Right Content */}
+            <div className="flex-1 overflow-auto p-3 json-panel">
+              {rightTab === "response" && (
+                <ResponseTab
+                  response={operation.response}
+                  displayResult={displayResult}
+                  jsonCollapsed={jsonCollapsed}
                 />
+              )}
 
-                {/* File picker with drag & drop - only show when no mock is loaded */}
-                {!hasMockData && (
-                  <div
-                    onClick={openFilePicker}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer duration-200 transition-colors ${
-                      isDragOver
-                        ? "border-purple-500/20"
-                        : "border-leo-border-strong hover:border-purple-500/20 hover:bg-leo-active/50"
-                    }`}
-                  >
-                    <svg
-                      className={`w-6 h-6 mb-2 ${
-                        isDragOver ? "text-purple-400" : "text-gray-500"
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
-                    <span
-                      className={`text-sm ${
-                        isDragOver ? "text-purple-300" : "text-gray-400"
-                      }`}
-                    >
-                      {isDragOver
-                        ? "Drop mock result data file"
-                        : "Select mock result data file"}
-                    </span>
-                    <span className="text-xs text-gray-600 mt-1">
-                      .json or .js files
-                    </span>
-                  </div>
-                )}
+              {rightTab === "result" && (
+                <ResultTab
+                  displayResult={displayResult}
+                  hasMockData={hasMockData}
+                  mockEnabled={mockEnabled}
+                  mockType={mockType}
+                  operation={operation}
+                  parsedMockData={parsedMockData}
+                  jsonCollapsed={jsonCollapsed}
+                />
+              )}
 
-                {/* Status messages */}
-                {mockError && (
-                  <p className="mt-3 text-xs text-red-400">{mockError}</p>
-                )}
+              {rightTab === "cache" && (
+                <CacheTab
+                  operationCache={operationCache}
+                  jsonCollapsed={jsonCollapsed}
+                />
+              )}
 
-                {/* JSON Mock - show editable tree */}
-                {hasMockData && mockType === "json" && (
-                  <div className="flex flex-col flex-1 pb-3">
-                    {/* Card header with file info and actions */}
+              {rightTab === "mock" && (
+                <div className="flex flex-col h-full">
+                  {/* Hidden file input (fallback for browsers without File System Access API) */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json,.js,application/json,text/javascript"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                    id={`mock-file-${operation.id}`}
+                  />
+
+                  {/* File picker with drag & drop - only show when no mock is loaded */}
+                  {!hasMockData && (
                     <div
-                      className={`relative p-3 border rounded ${
-                        mockEnabled
-                          ? "bg-purple-500/10 border-purple-500/30"
-                          : "bg-gray-500/10 border-gray-500/30"
+                      onClick={openFilePicker}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer duration-200 transition-colors ${
+                        isDragOver
+                          ? "border-purple-500/20"
+                          : "border-leo-border-strong hover:border-purple-500/20 hover:bg-leo-active/50"
                       }`}
                     >
-                      <div className="absolute top-2 right-2 flex items-center gap-1">
-                        {/* Enable/Disable toggle */}
-                        <button
-                          onClick={() =>
-                            onMockEnabledChange?.(
-                              operation.operationName,
-                              !mockEnabled
-                            )
-                          }
-                          className={`p-1 rounded transition-colors ${
-                            mockEnabled
-                              ? "hover:bg-purple-500/20 text-purple-400 hover:text-purple-300"
-                              : "hover:bg-gray-500/20 text-gray-500 hover:text-gray-300"
-                          }`}
-                          title={mockEnabled ? "Disable mock" : "Enable mock"}
-                        >
-                          {mockEnabled ? (
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                              />
-                            </svg>
-                          ) : (
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                              />
-                            </svg>
-                          )}
-                        </button>
-                        <button
-                          onClick={reloadFile}
-                          className={`p-1 rounded transition-colors ${
-                            mockEnabled
-                              ? "hover:bg-purple-500/20"
-                              : "hover:bg-gray-500/20"
-                          }`}
-                          title="Load different file"
-                        >
-                          <svg
-                            className={`w-4 h-4 ${
-                              mockEnabled
-                                ? "text-purple-400 hover:text-purple-300"
-                                : "text-gray-500 hover:text-gray-300"
-                            }`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={clearMock}
-                          className={`p-1 rounded transition-colors ${
-                            mockEnabled
-                              ? "hover:bg-purple-500/20"
-                              : "hover:bg-gray-500/20"
-                          }`}
-                          title="Remove mock"
-                        >
-                          <svg
-                            className={`w-4 h-4 ${
-                              mockEnabled
-                                ? "text-purple-400 hover:text-purple-300"
-                                : "text-gray-500 hover:text-gray-300"
-                            }`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-3 pr-20">
-                        <svg
-                          className={`w-5 h-5 shrink-0 ${
-                            mockEnabled ? "text-purple-400" : "text-gray-500"
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <div className="flex-1">
-                          <p
-                            className={`text-sm font-medium ${
-                              mockEnabled ? "text-purple-400" : "text-gray-500"
-                            }`}
-                          >
-                            {displayFileName || "Mock Data"}
-                          </p>
-                          <p
-                            className={`text-xs mt-0.5 ${
-                              mockEnabled ? "text-purple-300" : "text-gray-500"
-                            }`}
-                          >
-                            {displayFileSize !== null &&
-                              formatFileSize(displayFileSize)}{" "}
-                            — Click values to edit
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Only show JSON content when mock is enabled */}
-                    {mockEnabled && (
-                      <>
-                        {/* Large file warning - full width, above JSON */}
-                        {isMockDataLarge && !mockForceExpanded && (
-                          <div className="mt-3">
-                            <LargeJsonWarning
-                              onExpand={() => setMockForceExpanded(true)}
-                            />
-                          </div>
-                        )}
-
-                        {/* Editable JSON tree with copy button */}
-                        <EditableJsonTree
-                          data={parsedMockData}
-                          onEdit={handleJsonEdit}
-                          collapsed={jsonCollapsed}
-                          hideWarning
-                          forceExpanded={mockForceExpanded}
-                          showCopyButton
+                      <svg
+                        className={`w-6 h-6 mb-2 ${
+                          isDragOver ? "text-purple-400" : "text-gray-500"
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                         />
-                      </>
-                    )}
-                  </div>
-                )}
+                      </svg>
+                      <span
+                        className={`text-sm ${
+                          isDragOver ? "text-purple-300" : "text-gray-400"
+                        }`}
+                      >
+                        {isDragOver
+                          ? "Drop mock result data file"
+                          : "Select mock result data file"}
+                      </span>
+                      <span className="text-xs text-gray-600 mt-1">
+                        .json or .js files
+                      </span>
+                    </div>
+                  )}
 
-                {/* JS Mock - show script info */}
-                {hasMockData && mockType === "js" && (
-                  <div className="flex flex-col pb-3">
-                    <div
-                      className={`relative p-3 border rounded ${
-                        mockEnabled
-                          ? "bg-purple-500/10 border-purple-500/30"
-                          : "bg-gray-500/10 border-gray-500/30"
-                      }`}
-                    >
-                      <div className="absolute top-2 right-2 flex items-center gap-1">
-                        {/* Enable/Disable toggle */}
-                        <button
-                          onClick={() =>
-                            onMockEnabledChange?.(
-                              operation.operationName,
-                              !mockEnabled
-                            )
-                          }
-                          className={`p-1 rounded transition-colors ${
-                            mockEnabled
-                              ? "hover:bg-purple-500/20 text-purple-400 hover:text-purple-300"
-                              : "hover:bg-gray-500/20 text-gray-500 hover:text-gray-300"
-                          }`}
-                          title={mockEnabled ? "Disable mock" : "Enable mock"}
-                        >
-                          {mockEnabled ? (
+                  {/* Status messages */}
+                  {mockError && (
+                    <p className="mt-3 text-xs text-red-400">{mockError}</p>
+                  )}
+
+                  {/* JSON Mock - show editable tree */}
+                  {hasMockData && mockType === "json" && (
+                    <div className="flex flex-col flex-1 pb-3 space-y-4">
+                      {/* Card header with file info and actions */}
+                      <div
+                        className={`relative p-3 border rounded ${
+                          mockEnabled
+                            ? "bg-purple-500/10 border-purple-500/30"
+                            : "bg-gray-500/10 border-gray-500/30"
+                        }`}
+                      >
+                        <div className="absolute top-2 right-2 flex items-center gap-1">
+                          {/* Enable/Disable toggle */}
+                          <button
+                            onClick={() =>
+                              onMockEnabledChange?.(
+                                operation.operationName,
+                                !mockEnabled
+                              )
+                            }
+                            className={`p-1 rounded transition-colors ${
+                              mockEnabled
+                                ? "hover:bg-purple-500/20 text-purple-400 hover:text-purple-300"
+                                : "hover:bg-gray-500/20 text-gray-500 hover:text-gray-300"
+                            }`}
+                            title={mockEnabled ? "Disable mock" : "Enable mock"}
+                          >
+                            {mockEnabled ? (
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                                />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            onClick={reloadFile}
+                            className={`p-1 rounded transition-colors ${
+                              mockEnabled
+                                ? "hover:bg-purple-500/20"
+                                : "hover:bg-gray-500/20"
+                            }`}
+                            title="Load different file"
+                          >
                             <svg
-                              className="w-4 h-4"
+                              className={`w-4 h-4 ${
+                                mockEnabled
+                                  ? "text-purple-400 hover:text-purple-300"
+                                  : "text-gray-500 hover:text-gray-300"
+                              }`}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1132,18 +1014,25 @@ function OperationDetailInner({
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                               />
                             </svg>
-                          ) : (
+                          </button>
+                          <button
+                            onClick={clearMock}
+                            className={`p-1 rounded transition-colors ${
+                              mockEnabled
+                                ? "hover:bg-purple-500/20"
+                                : "hover:bg-gray-500/20"
+                            }`}
+                            title="Remove mock"
+                          >
                             <svg
-                              className="w-4 h-4"
+                              className={`w-4 h-4 ${
+                                mockEnabled
+                                  ? "text-purple-400 hover:text-purple-300"
+                                  : "text-gray-500 hover:text-gray-300"
+                              }`}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1152,134 +1041,270 @@ function OperationDetailInner({
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                                d="M6 18L18 6M6 6l12 12"
                               />
                             </svg>
-                          )}
-                        </button>
-                        <button
-                          onClick={reloadFile}
-                          className={`p-1 rounded transition-colors ${
-                            mockEnabled
-                              ? "hover:bg-purple-500/20"
-                              : "hover:bg-gray-500/20"
-                          }`}
-                          title="Load different file"
-                        >
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-3 pr-20">
                           <svg
-                            className={`w-4 h-4 ${
-                              mockEnabled
-                                ? "text-purple-400 hover:text-purple-300"
-                                : "text-gray-500 hover:text-gray-300"
-                            }`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={clearMock}
-                          className={`p-1 rounded transition-colors ${
-                            mockEnabled
-                              ? "hover:bg-purple-500/20"
-                              : "hover:bg-gray-500/20"
-                          }`}
-                          title="Remove mock"
-                        >
-                          <svg
-                            className={`w-4 h-4 ${
-                              mockEnabled
-                                ? "text-purple-400 hover:text-purple-300"
-                                : "text-gray-500 hover:text-gray-300"
-                            }`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-3 pr-20">
-                        <svg
-                          className={`w-5 h-5 shrink-0 ${
-                            mockEnabled ? "text-purple-400" : "text-gray-500"
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <div className="flex-1">
-                          <p
-                            className={`text-sm font-medium ${
+                            className={`w-5 h-5 shrink-0 ${
                               mockEnabled ? "text-purple-400" : "text-gray-500"
                             }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            {displayFileName}
-                          </p>
-                          <p
-                            className={`text-xs mt-0.5 ${
-                              mockEnabled ? "text-purple-300" : "text-gray-500"
-                            }`}
-                          >
-                            {displayFileSize !== null &&
-                              formatFileSize(displayFileSize)}{" "}
-                            — Script executes on each request
-                          </p>
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <div className="flex-1">
+                            <p
+                              className={`text-sm font-medium ${
+                                mockEnabled
+                                  ? "text-purple-400"
+                                  : "text-gray-500"
+                              }`}
+                            >
+                              {displayFileName || "Mock Data"}
+                            </p>
+                            <p
+                              className={`text-xs mt-0.5 ${
+                                mockEnabled
+                                  ? "text-purple-300"
+                                  : "text-gray-500"
+                              }`}
+                            >
+                              {displayFileSize !== null &&
+                                formatFileSize(displayFileSize)}{" "}
+                              — Click values to edit
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Only show script editor and help text when mock is enabled */}
-                    {mockEnabled &&
-                      parsedMockData?.__mockScript !== undefined && (
+                      {/* Only show JSON content when mock is enabled */}
+                      {mockEnabled && (
                         <>
-                          <div className="mt-3">
-                            <p className="text-xs text-gray-400 mb-2">
-                              Script (editable):
-                            </p>
-                            <JavaScriptEditor
-                              code={parsedMockData.__mockScript}
-                              onChange={handleScriptEdit}
-                            />
-                          </div>
+                          {/* Large file warning - full width, above JSON */}
+                          {isMockDataLarge && !mockForceExpanded && (
+                            <div className="mt-3">
+                              <LargeJsonWarning
+                                onExpand={() => setMockForceExpanded(true)}
+                              />
+                            </div>
+                          )}
 
-                          <p className="text-xs text-gray-500 mt-3">
-                            Utilise{" "}
-                            <code className="text-purple-400">variables</code>,{" "}
-                            <code className="text-purple-400">
-                              operationName
-                            </code>
-                            ,{" and "}
-                            <code className="text-purple-400">request</code> to
-                            create dynamic mock data.
-                          </p>
+                          {/* Editable JSON tree with copy button */}
+                          <EditableJsonTree
+                            data={parsedMockData}
+                            onEdit={handleJsonEdit}
+                            collapsed={jsonCollapsed}
+                            hideWarning
+                            forceExpanded={mockForceExpanded}
+                            showCopyButton
+                          />
                         </>
                       )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                    </div>
+                  )}
+
+                  {/* JS Mock - show script info */}
+                  {hasMockData && mockType === "js" && (
+                    <div className="flex flex-col pb-3">
+                      <div
+                        className={`relative p-3 border rounded ${
+                          mockEnabled
+                            ? "bg-purple-500/10 border-purple-500/30"
+                            : "bg-gray-500/10 border-gray-500/30"
+                        }`}
+                      >
+                        <div className="absolute top-2 right-2 flex items-center gap-1">
+                          {/* Enable/Disable toggle */}
+                          <button
+                            onClick={() =>
+                              onMockEnabledChange?.(
+                                operation.operationName,
+                                !mockEnabled
+                              )
+                            }
+                            className={`p-1 rounded transition-colors ${
+                              mockEnabled
+                                ? "hover:bg-purple-500/20 text-purple-400 hover:text-purple-300"
+                                : "hover:bg-gray-500/20 text-gray-500 hover:text-gray-300"
+                            }`}
+                            title={mockEnabled ? "Disable mock" : "Enable mock"}
+                          >
+                            {mockEnabled ? (
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                                />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            onClick={reloadFile}
+                            className={`p-1 rounded transition-colors ${
+                              mockEnabled
+                                ? "hover:bg-purple-500/20"
+                                : "hover:bg-gray-500/20"
+                            }`}
+                            title="Load different file"
+                          >
+                            <svg
+                              className={`w-4 h-4 ${
+                                mockEnabled
+                                  ? "text-purple-400 hover:text-purple-300"
+                                  : "text-gray-500 hover:text-gray-300"
+                              }`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={clearMock}
+                            className={`p-1 rounded transition-colors ${
+                              mockEnabled
+                                ? "hover:bg-purple-500/20"
+                                : "hover:bg-gray-500/20"
+                            }`}
+                            title="Remove mock"
+                          >
+                            <svg
+                              className={`w-4 h-4 ${
+                                mockEnabled
+                                  ? "text-purple-400 hover:text-purple-300"
+                                  : "text-gray-500 hover:text-gray-300"
+                              }`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-3 pr-20">
+                          <svg
+                            className={`w-5 h-5 shrink-0 ${
+                              mockEnabled ? "text-purple-400" : "text-gray-500"
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <div className="flex-1">
+                            <p
+                              className={`text-sm font-medium ${
+                                mockEnabled
+                                  ? "text-purple-400"
+                                  : "text-gray-500"
+                              }`}
+                            >
+                              {displayFileName}
+                            </p>
+                            <p
+                              className={`text-xs mt-0.5 ${
+                                mockEnabled
+                                  ? "text-purple-300"
+                                  : "text-gray-500"
+                              }`}
+                            >
+                              {displayFileSize !== null &&
+                                formatFileSize(displayFileSize)}{" "}
+                              — Script executes on each request
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Only show script editor and help text when mock is enabled */}
+                      {mockEnabled &&
+                        parsedMockData?.__mockScript !== undefined && (
+                          <>
+                            <div className="mt-3">
+                              <p className="text-xs text-gray-400 mb-2">
+                                Script (editable):
+                              </p>
+                              <JavaScriptEditor
+                                code={parsedMockData.__mockScript}
+                                onChange={handleScriptEdit}
+                              />
+                            </div>
+
+                            <p className="text-xs text-gray-500 mt-3">
+                              Utilise{" "}
+                              <code className="text-purple-400">variables</code>
+                              ,{" "}
+                              <code className="text-purple-400">
+                                operationName
+                              </code>
+                              ,{" and "}
+                              <code className="text-purple-400">
+                                request
+                              </code>{" "}
+                              to create dynamic mock data.
+                            </p>
+                          </>
+                        )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </ResizablePanel>
       </PanelGroup>

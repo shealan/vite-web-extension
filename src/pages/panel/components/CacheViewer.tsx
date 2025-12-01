@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { JsonTree, CopyButton } from './JsonTree';
+import { EditableJsonTree } from './EditableJsonTree';
 
 interface CacheViewerProps {
   cache: Record<string, unknown> | null;
@@ -89,19 +89,12 @@ export function CacheViewer({ cache }: CacheViewerProps) {
       {/* Cache Value Detail */}
       <div className="flex-1 overflow-auto p-4 w-full json-panel">
         {selectedKey ? (
-          <>
-            <div className="w-full">
-              <h3 className="text-sm font-semibold text-purple-400 mb-3 font-mono break-all">
-                {selectedKey}
-              </h3>
-              <div className="json-tree w-full">
-                <JsonTree data={selectedValue} />
-              </div>
-            </div>
-            <div className="fixed-copy-button">
-              <CopyButton data={selectedValue} />
-            </div>
-          </>
+          <div className="w-full">
+            <h3 className="text-sm font-semibold text-purple-400 mb-3 font-mono break-all">
+              {selectedKey}
+            </h3>
+            <EditableJsonTree data={selectedValue} readOnly showCopyButton />
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
             Select a cache key to view its contents
