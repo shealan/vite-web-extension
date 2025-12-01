@@ -1,90 +1,131 @@
-import React from 'react';
+import React, { useEffect, useRef } from "react";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { graphql } from "cm6-graphql";
+import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
 
 interface GraphQLHighlightProps {
   query: string;
 }
 
+// GraphQL syntax highlighting matching Leonardo.Ai theme
+const graphqlHighlightStyle = HighlightStyle.define([
+  // Keywords (query, mutation, subscription, fragment, on, type, etc.)
+  { tag: tags.keyword, color: "#b294bb" },
+  { tag: tags.definitionKeyword, color: "#b294bb" },
+  // Type names
+  { tag: tags.typeName, color: "#8abeb7" },
+  // Field names
+  { tag: tags.propertyName, color: "#81a2be" },
+  // Variables ($var)
+  { tag: tags.variableName, color: "#de935f" },
+  // Strings
+  { tag: tags.string, color: "#7ec699" },
+  // Numbers
+  { tag: tags.number, color: "#d4a76a" },
+  // Booleans and null
+  { tag: tags.bool, color: "#c9a0dc" },
+  { tag: tags.null, color: "#c9a0dc" },
+  // Directives (@skip, @include, etc.)
+  { tag: tags.meta, color: "#f0c674" },
+  // Comments
+  { tag: tags.comment, color: "#6b7280", fontStyle: "italic" },
+  // Punctuation
+  { tag: tags.punctuation, color: "#969896" },
+  { tag: tags.bracket, color: "#969896" },
+  { tag: tags.brace, color: "#969896" },
+  { tag: tags.paren, color: "#969896" },
+  // Operation/Fragment names
+  { tag: tags.function(tags.definition(tags.variableName)), color: "#8abeb7" },
+  // Argument names
+  { tag: tags.definition(tags.propertyName), color: "#81a2be" },
+]);
+
+// Read-only theme for the viewer (no gutters, no line numbers)
+const graphqlViewerTheme = EditorView.theme(
+  {
+    "&": {
+      backgroundColor: "transparent",
+      color: "#c5c8c6",
+      fontSize: "12px",
+      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+    },
+    ".cm-content": {
+      caretColor: "transparent",
+      padding: "0",
+      minHeight: "auto",
+    },
+    ".cm-scroller": {
+      minHeight: "auto",
+      overflow: "visible",
+    },
+    ".cm-line": {
+      padding: "0",
+    },
+    "&.cm-focused": {
+      outline: "none",
+    },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+      backgroundColor: "rgba(125, 211, 252, 0.3)",
+    },
+    ".cm-cursor": {
+      display: "none",
+    },
+  },
+  { dark: true }
+);
+
 export function GraphQLHighlight({ query }: GraphQLHighlightProps) {
-  const highlighted = highlightGraphQL(query);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    const state = EditorState.create({
+      doc: query,
+      extensions: [
+        graphql(),
+        syntaxHighlighting(graphqlHighlightStyle),
+        graphqlViewerTheme,
+        EditorState.readOnly.of(true),
+        EditorView.editable.of(false),
+        EditorView.lineWrapping,
+      ],
+    });
+
+    const view = new EditorView({
+      state,
+      parent: editorRef.current,
+    });
+
+    viewRef.current = view;
+
+    return () => {
+      view.destroy();
+      viewRef.current = null;
+    };
+  }, []);
+
+  // Update content when query changes
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view && query !== view.state.doc.toString()) {
+      view.dispatch({
+        changes: {
+          from: 0,
+          to: view.state.doc.length,
+          insert: query,
+        },
+      });
+    }
+  }, [query]);
 
   return (
-    <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed">
-      {highlighted.map((token, i) => (
-        <span key={i} className={token.className}>
-          {token.text}
-        </span>
-      ))}
-    </pre>
+    <div
+      ref={editorRef}
+      className="graphql-highlight leading-relaxed bg-leo-elevated p-3"
+    />
   );
-}
-
-interface Token {
-  text: string;
-  className: string;
-}
-
-function highlightGraphQL(query: string): Token[] {
-  const tokens: Token[] = [];
-  let remaining = query;
-
-  const patterns: { regex: RegExp; className: string }[] = [
-    // Comments
-    { regex: /^#[^\n]*/, className: 'text-gray-500 italic' },
-    // Keywords
-    { regex: /^(query|mutation|subscription|fragment|on|type|interface|union|enum|scalar|input|extend|schema|directive)\b/, className: 'text-purple-400 font-semibold' },
-    // Built-in directives
-    { regex: /^@(skip|include|deprecated|specifiedBy)\b/, className: 'text-yellow-400' },
-    // Custom directives
-    { regex: /^@\w+/, className: 'text-yellow-400' },
-    // Type names (capitalized words, often after : or in fragments)
-    { regex: /^(ID|String|Int|Float|Boolean)\b/, className: 'text-emerald-400' },
-    // Variables
-    { regex: /^\$\w+/, className: 'text-orange-400' },
-    // Field arguments / parameters
-    { regex: /^(true|false|null)\b/, className: 'text-blue-400' },
-    // Numbers
-    { regex: /^-?\d+\.?\d*/, className: 'text-amber-300' },
-    // Strings
-    { regex: /^"(?:[^"\\]|\\.)*"/, className: 'text-green-400' },
-    // Triple-quoted strings
-    { regex: /^"""[\s\S]*?"""/, className: 'text-green-400' },
-    // Operation/Fragment names and Type names (PascalCase)
-    { regex: /^[A-Z]\w*/, className: 'text-cyan-400' },
-    // Field names (camelCase after newline/space or at start)
-    { regex: /^[a-z_]\w*(?=\s*[:\({\s])/, className: 'text-sky-300' },
-    // Other identifiers
-    { regex: /^[a-z_]\w*/i, className: 'text-gray-200' },
-    // Punctuation - braces
-    { regex: /^[{}]/, className: 'text-gray-400' },
-    // Punctuation - parens
-    { regex: /^[()]/, className: 'text-gray-500' },
-    // Punctuation - other
-    { regex: /^[:\[\]!,=]/, className: 'text-gray-500' },
-    // Spread operator
-    { regex: /^\.\.\./, className: 'text-purple-400' },
-    // Whitespace
-    { regex: /^\s+/, className: '' },
-  ];
-
-  while (remaining.length > 0) {
-    let matched = false;
-
-    for (const { regex, className } of patterns) {
-      const match = remaining.match(regex);
-      if (match) {
-        tokens.push({ text: match[0], className });
-        remaining = remaining.slice(match[0].length);
-        matched = true;
-        break;
-      }
-    }
-
-    if (!matched) {
-      // Push single character if nothing matches
-      tokens.push({ text: remaining[0], className: 'text-gray-200' });
-      remaining = remaining.slice(1);
-    }
-  }
-
-  return tokens;
 }

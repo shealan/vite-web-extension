@@ -246,7 +246,7 @@ body {
 
 /* JSON Editor container padding */
 .editable-json-tree .jer-editor-container {
-  padding: 12px 12px 12px 25px !important;
+  padding: 6px 12px 12px 25px !important;
 }
 
 /* Resizable Panel Handle Styles */

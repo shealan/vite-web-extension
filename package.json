@@ -28,6 +28,7 @@
     "@lezer/highlight": "^1.2.3",
     "acorn": "^8.15.0",
     "clsx": "^2.1.1",
+    "cm6-graphql": "^0.2.1",
     "json-edit-react": "^1.29.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
