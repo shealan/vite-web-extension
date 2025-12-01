@@ -475,7 +475,7 @@ export const LargeJsonWarning = React.memo(function LargeJsonWarning({
       </span>
       <button
         onClick={onExpand}
-        className="px-2 py-0.5 bg-leo-border-strong hover:bg-gray-600 rounded transition-colors text-gray-200"
+        className="px-2 py-0.5 bg-leo-border-strong hover:bg-[#2d2d4a] rounded transition-colors text-gray-400 hover:text-gray-200"
       >
         Expand All
       </button>

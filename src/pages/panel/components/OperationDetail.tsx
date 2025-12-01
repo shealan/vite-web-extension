@@ -93,10 +93,8 @@ function ResultTab({
     <div className="json-tree w-full">
       {/* Warning banners - full width, above everything */}
       {hasMockData && mockEnabled && (
-        <div className="mb-4 p-3 bg-purple-500/10 border-purple-500/30 border rounded">
-          <h3 className="text-sm font-medium text-purple-400">
-            Mocked Response
-          </h3>
+        <div className="font-sans mb-4 p-3 bg-purple-500/10 border-purple-500/30 border rounded">
+          <h3 className="text-sm font-bold text-purple-400">Mocked Response</h3>
           <p className="text-xs mt-1 text-purple-300">
             {mockType === "js"
               ? "Script executes on each request - result shown is from last execution"
@@ -105,7 +103,7 @@ function ResultTab({
         </div>
       )}
       {operation.error && parsedMockData === null && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded">
+        <div className="font-sans mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded">
           <h3 className="text-sm font-medium text-red-400">Error</h3>
           <p className="text-xs text-red-300 mt-1">
             An error was returned by this {operation.type} operation
