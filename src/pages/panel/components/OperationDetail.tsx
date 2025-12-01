@@ -5,6 +5,7 @@ import {
   PanelResizeHandle,
 } from "react-resizable-panels";
 import { GraphQLOperation } from "@src/shared/types";
+import { cn } from "@src/shared/cn";
 import { EditableJsonTree } from "./EditableJsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
 import { JavaScriptEditor } from "./JavaScriptEditor";
@@ -181,13 +182,16 @@ function ResponseTab({
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <span
-            className={`px-2 py-0.5 text-xs rounded font-medium ${
-              response.status >= 200 && response.status < 300
-                ? "bg-green-500/20 text-green-400"
-                : response.status >= 400
-                ? "bg-red-500/20 text-red-400"
-                : "bg-yellow-500/20 text-yellow-400"
-            }`}
+            className={cn(
+              "px-2 py-0.5 text-xs rounded font-medium",
+              response.status >= 200 &&
+                response.status < 300 &&
+                "bg-green-500/20 text-green-400",
+              response.status >= 400 && "bg-red-500/20 text-red-400",
+              response.status >= 300 &&
+                response.status < 400 &&
+                "bg-yellow-500/20 text-yellow-400"
+            )}
           >
             {response.status}
           </span>
@@ -527,13 +531,14 @@ function OperationDetailInner({
       <div className="px-3 py-3 border-b border-leo-border">
         <div className="flex items-center gap-2">
           <span
-            className={`px-2 py-0.5 text-xs rounded font-medium ${
-              operation.type === "query"
-                ? "bg-blue-500/20 text-blue-400"
-                : operation.type === "mutation"
-                ? "bg-orange-500/20 text-orange-400"
-                : "bg-purple-500/20 text-purple-400"
-            }`}
+            className={cn(
+              "px-2 py-0.5 text-xs rounded font-medium",
+              operation.type === "query" && "bg-blue-500/20 text-blue-400",
+              operation.type === "mutation" &&
+                "bg-orange-500/20 text-orange-400",
+              operation.type === "subscription" &&
+                "bg-purple-500/20 text-purple-400"
+            )}
           >
             {operation.type.toUpperCase()}
           </span>
@@ -563,11 +568,12 @@ function OperationDetailInner({
                 <button
                   key={tab.id}
                   onClick={() => setLeftTab(tab.id)}
-                  className={`px-4 py-2 text-xs font-medium transition-colors ${
+                  className={cn(
+                    "px-4 py-2 text-xs font-medium transition-colors",
                     leftTab === tab.id
                       ? "text-purple-400 border-b-2 border-purple-500"
                       : "text-gray-400 hover:text-gray-200"
-                  }`}
+                  )}
                 >
                   {tab.label}
                 </button>
@@ -678,7 +684,7 @@ function OperationDetailInner({
                       {/* fetchPolicy */}
                       <div className="flex items-center justify-between py-2 border-b border-leo-border">
                         <span className="text-gray-400">fetchPolicy</span>
-                        <span className="text-purple-400 ">
+                        <span className="text-green-300/75">
                           {operation.options.fetchPolicy
                             ? `"${operation.options.fetchPolicy}"`
                             : "null"}
@@ -688,7 +694,7 @@ function OperationDetailInner({
                       {/* errorPolicy */}
                       <div className="flex items-center justify-between py-2 border-b border-leo-border">
                         <span className="text-gray-400">errorPolicy</span>
-                        <span className="text-purple-400">
+                        <span className="text-green-300/75">
                           {operation.options.errorPolicy
                             ? `"${operation.options.errorPolicy}"`
                             : "null"}
@@ -701,11 +707,11 @@ function OperationDetailInner({
                           notifyOnNetworkStatusChange
                         </span>
                         <span
-                          className={`${
+                          className={cn(
                             operation.options.notifyOnNetworkStatusChange
                               ? "text-green-400"
-                              : "text-orange-400"
-                          }`}
+                              : "text-orange-300/75"
+                          )}
                         >
                           {operation.options.notifyOnNetworkStatusChange
                             ? "true"
@@ -717,11 +723,11 @@ function OperationDetailInner({
                       <div className="flex items-center justify-between py-2 border-b border-leo-border">
                         <span className="text-gray-400">returnPartialData</span>
                         <span
-                          className={`${
+                          className={cn(
                             operation.options.returnPartialData
                               ? "text-green-400"
-                              : "text-orange-400"
-                          }`}
+                              : "text-orange-300/75"
+                          )}
                         >
                           {operation.options.returnPartialData
                             ? "true"
@@ -733,11 +739,11 @@ function OperationDetailInner({
                       <div className="flex items-center justify-between py-2 border-b border-leo-border">
                         <span className="text-gray-400">partialRefetch</span>
                         <span
-                          className={`${
+                          className={cn(
                             operation.options.partialRefetch
                               ? "text-green-400"
-                              : "text-orange-400"
-                          }`}
+                              : "text-orange-300/75"
+                          )}
                         >
                           {operation.options.partialRefetch ? "true" : "false"}
                         </span>
@@ -748,11 +754,11 @@ function OperationDetailInner({
                         <div className="flex items-center justify-between py-2 border-b border-leo-border">
                           <span className="text-gray-400">canonizeResults</span>
                           <span
-                            className={`${
+                            className={cn(
                               operation.options.canonizeResults
                                 ? "text-green-400"
-                                : "text-orange-400"
-                            }`}
+                                : "text-orange-300/75"
+                            )}
                           >
                             {operation.options.canonizeResults
                               ? "true"
@@ -787,11 +793,12 @@ function OperationDetailInner({
                 <button
                   key={tab.id}
                   onClick={() => setRightTab(tab.id)}
-                  className={`px-4 py-2 text-xs font-medium transition-colors ${
+                  className={cn(
+                    "px-4 py-2 text-xs font-medium transition-colors",
                     rightTab === tab.id
                       ? "text-purple-400 border-b-2 border-purple-500"
                       : "text-gray-400 hover:text-gray-200"
-                  }`}
+                  )}
                 >
                   {tab.label}
                 </button>
@@ -846,16 +853,18 @@ function OperationDetailInner({
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
-                      className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer duration-200 transition-colors ${
+                      className={cn(
+                        "flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer duration-200 transition-colors",
                         isDragOver
                           ? "border-purple-500/20"
                           : "border-leo-border-strong hover:border-purple-500/20 hover:bg-leo-active/50"
-                      }`}
+                      )}
                     >
                       <svg
-                        className={`w-6 h-6 mb-2 ${
+                        className={cn(
+                          "w-6 h-6 mb-2",
                           isDragOver ? "text-purple-400" : "text-gray-500"
-                        }`}
+                        )}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -868,9 +877,10 @@ function OperationDetailInner({
                         />
                       </svg>
                       <span
-                        className={`text-sm ${
+                        className={cn(
+                          "text-sm",
                           isDragOver ? "text-purple-300" : "text-gray-400"
-                        }`}
+                        )}
                       >
                         {isDragOver
                           ? "Drop mock result data file"
@@ -892,11 +902,12 @@ function OperationDetailInner({
                     <div className="flex flex-col flex-1 pb-3 space-y-4">
                       {/* Card header with file info and actions */}
                       <div
-                        className={`relative p-3 border rounded ${
+                        className={cn(
+                          "relative p-3 border rounded",
                           mockEnabled
                             ? "bg-purple-500/10 border-purple-500/30"
                             : "bg-gray-500/10 border-gray-500/30"
-                        }`}
+                        )}
                       >
                         <div className="absolute top-2 right-2 flex items-center gap-1">
                           {/* Enable/Disable toggle */}
@@ -907,11 +918,12 @@ function OperationDetailInner({
                                 !mockEnabled
                               )
                             }
-                            className={`p-1 rounded transition-colors ${
+                            className={cn(
+                              "p-1 rounded transition-colors",
                               mockEnabled
                                 ? "hover:bg-purple-500/20 text-purple-400 hover:text-purple-300"
                                 : "hover:bg-gray-500/20 text-gray-500 hover:text-gray-300"
-                            }`}
+                            )}
                             title={mockEnabled ? "Disable mock" : "Enable mock"}
                           >
                             {mockEnabled ? (
@@ -952,19 +964,21 @@ function OperationDetailInner({
                           </button>
                           <button
                             onClick={reloadFile}
-                            className={`p-1 rounded transition-colors ${
+                            className={cn(
+                              "p-1 rounded transition-colors",
                               mockEnabled
                                 ? "hover:bg-purple-500/20"
                                 : "hover:bg-gray-500/20"
-                            }`}
+                            )}
                             title="Load different file"
                           >
                             <svg
-                              className={`w-4 h-4 ${
+                              className={cn(
+                                "w-4 h-4",
                                 mockEnabled
                                   ? "text-purple-400 hover:text-purple-300"
                                   : "text-gray-500 hover:text-gray-300"
-                              }`}
+                              )}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -979,19 +993,21 @@ function OperationDetailInner({
                           </button>
                           <button
                             onClick={clearMock}
-                            className={`p-1 rounded transition-colors ${
+                            className={cn(
+                              "p-1 rounded transition-colors",
                               mockEnabled
                                 ? "hover:bg-purple-500/20"
                                 : "hover:bg-gray-500/20"
-                            }`}
+                            )}
                             title="Remove mock"
                           >
                             <svg
-                              className={`w-4 h-4 ${
+                              className={cn(
+                                "w-4 h-4",
                                 mockEnabled
                                   ? "text-purple-400 hover:text-purple-300"
                                   : "text-gray-500 hover:text-gray-300"
-                              }`}
+                              )}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1007,9 +1023,10 @@ function OperationDetailInner({
                         </div>
                         <div className="flex items-center gap-3 pr-20">
                           <svg
-                            className={`w-5 h-5 shrink-0 ${
+                            className={cn(
+                              "w-5 h-5 shrink-0",
                               mockEnabled ? "text-purple-400" : "text-gray-500"
-                            }`}
+                            )}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -1023,20 +1040,22 @@ function OperationDetailInner({
                           </svg>
                           <div className="flex-1">
                             <p
-                              className={`text-sm font-medium ${
+                              className={cn(
+                                "text-sm font-medium",
                                 mockEnabled
                                   ? "text-purple-400"
                                   : "text-gray-500"
-                              }`}
+                              )}
                             >
                               {displayFileName || "Mock Data"}
                             </p>
                             <p
-                              className={`text-xs mt-0.5 ${
+                              className={cn(
+                                "text-xs mt-0.5",
                                 mockEnabled
                                   ? "text-purple-300"
                                   : "text-gray-500"
-                              }`}
+                              )}
                             >
                               {displayFileSize !== null &&
                                 formatFileSize(displayFileSize)}{" "}
@@ -1062,11 +1081,12 @@ function OperationDetailInner({
                   {hasMockData && mockType === "js" && (
                     <div className="flex flex-col">
                       <div
-                        className={`relative p-3 border rounded ${
+                        className={cn(
+                          "relative p-3 border rounded",
                           mockEnabled
                             ? "bg-purple-500/10 border-purple-500/30"
                             : "bg-gray-500/10 border-gray-500/30"
-                        }`}
+                        )}
                       >
                         <div className="absolute top-2 right-2 flex items-center gap-1">
                           {/* Enable/Disable toggle */}
@@ -1077,11 +1097,12 @@ function OperationDetailInner({
                                 !mockEnabled
                               )
                             }
-                            className={`p-1 rounded transition-colors ${
+                            className={cn(
+                              "p-1 rounded transition-colors",
                               mockEnabled
                                 ? "hover:bg-purple-500/20 text-purple-400 hover:text-purple-300"
                                 : "hover:bg-gray-500/20 text-gray-500 hover:text-gray-300"
-                            }`}
+                            )}
                             title={mockEnabled ? "Disable mock" : "Enable mock"}
                           >
                             {mockEnabled ? (
@@ -1122,19 +1143,21 @@ function OperationDetailInner({
                           </button>
                           <button
                             onClick={reloadFile}
-                            className={`p-1 rounded transition-colors ${
+                            className={cn(
+                              "p-1 rounded transition-colors",
                               mockEnabled
                                 ? "hover:bg-purple-500/20"
                                 : "hover:bg-gray-500/20"
-                            }`}
+                            )}
                             title="Load different file"
                           >
                             <svg
-                              className={`w-4 h-4 ${
+                              className={cn(
+                                "w-4 h-4",
                                 mockEnabled
                                   ? "text-purple-400 hover:text-purple-300"
                                   : "text-gray-500 hover:text-gray-300"
-                              }`}
+                              )}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1149,19 +1172,21 @@ function OperationDetailInner({
                           </button>
                           <button
                             onClick={clearMock}
-                            className={`p-1 rounded transition-colors ${
+                            className={cn(
+                              "p-1 rounded transition-colors",
                               mockEnabled
                                 ? "hover:bg-purple-500/20"
                                 : "hover:bg-gray-500/20"
-                            }`}
+                            )}
                             title="Remove mock"
                           >
                             <svg
-                              className={`w-4 h-4 ${
+                              className={cn(
+                                "w-4 h-4",
                                 mockEnabled
                                   ? "text-purple-400 hover:text-purple-300"
                                   : "text-gray-500 hover:text-gray-300"
-                              }`}
+                              )}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1177,9 +1202,10 @@ function OperationDetailInner({
                         </div>
                         <div className="flex items-center gap-3 pr-20">
                           <svg
-                            className={`w-5 h-5 shrink-0 ${
+                            className={cn(
+                              "w-5 h-5 shrink-0",
                               mockEnabled ? "text-purple-400" : "text-gray-500"
-                            }`}
+                            )}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -1193,20 +1219,22 @@ function OperationDetailInner({
                           </svg>
                           <div className="flex-1">
                             <p
-                              className={`text-sm font-medium ${
+                              className={cn(
+                                "text-sm font-medium",
                                 mockEnabled
                                   ? "text-purple-400"
                                   : "text-gray-500"
-                              }`}
+                              )}
                             >
                               {displayFileName}
                             </p>
                             <p
-                              className={`text-xs mt-0.5 ${
+                              className={cn(
+                                "text-xs mt-0.5",
                                 mockEnabled
                                   ? "text-purple-300"
                                   : "text-gray-500"
-                              }`}
+                              )}
                             >
                               {displayFileSize !== null &&
                                 formatFileSize(displayFileSize)}{" "}

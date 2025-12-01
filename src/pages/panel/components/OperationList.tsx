@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { GraphQLOperation } from "@src/shared/types";
+import { cn } from "@src/shared/cn";
 
 interface OperationListProps {
   operations: GraphQLOperation[];
@@ -101,9 +102,10 @@ export function OperationList({
               <button
                 key={operation.id}
                 onClick={() => onSelect(operation)}
-                className={`w-full px-3 py-2 text-left hover:bg-leo-hover/50 transition-colors ${
-                  selectedId === operation.id ? "bg-leo-hover" : ""
-                }`}
+                className={cn(
+                  "w-full px-3 py-2 text-left hover:bg-leo-hover/50 transition-colors",
+                  selectedId === operation.id && "bg-leo-hover"
+                )}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { cn } from '@src/shared/cn';
 import { EditableJsonTree } from './EditableJsonTree';
 
 interface CacheViewerProps {
@@ -64,9 +65,10 @@ export function CacheViewer({ cache }: CacheViewerProps) {
                 <button
                   key={key}
                   onClick={() => setSelectedKey(key)}
-                  className={`w-full px-3 py-2 text-left hover:bg-leo-hover/50 transition-colors ${
-                    selectedKey === key ? 'bg-leo-hover' : ''
-                  }`}
+                  className={cn(
+                    "w-full px-3 py-2 text-left hover:bg-leo-hover/50 transition-colors",
+                    selectedKey === key && "bg-leo-hover"
+                  )}
                 >
                   <span className="text-sm text-gray-200 truncate block font-mono">
                     {key}

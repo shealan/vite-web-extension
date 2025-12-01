@@ -11,6 +11,7 @@ import {
   RawWatchedQuery,
   RawMutation,
 } from "@src/shared/types";
+import { cn } from "@src/shared/cn";
 import { OperationList } from "./components/OperationList";
 import { CacheViewer } from "./components/CacheViewer";
 import { OperationDetail } from "./components/OperationDetail";
@@ -739,11 +740,12 @@ export default function Panel() {
             Developer Tools
           </div>
           <span
-            className={`px-2 py-0.5 text-xs rounded-full flex items-center gap-0.5 ${
+            className={cn(
+              "px-2 py-0.5 text-xs rounded-full flex items-center gap-0.5",
               state.isConnected
                 ? "bg-green-500/20 text-green-400"
                 : "bg-gray-500/20 text-gray-400 animate-pulse"
-            }`}
+            )}
           >
             {state.isConnected ? (
               <svg
@@ -864,18 +866,20 @@ export default function Panel() {
                       autoExpandJson: !prev.autoExpandJson,
                     }))
                   }
-                  className={`relative w-10 h-5 rounded-full transition-colors ${
+                  className={cn(
+                    "relative w-10 h-5 rounded-full transition-colors",
                     settings.autoExpandJson
                       ? "bg-leo-purple-600"
                       : "bg-leo-border-strong"
-                  }`}
+                  )}
                 >
                   <span
-                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                    className={cn(
+                      "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform",
                       settings.autoExpandJson
                         ? "translate-x-5"
                         : "translate-x-0"
-                    }`}
+                    )}
                   />
                 </button>
               </label>
@@ -890,18 +894,20 @@ export default function Panel() {
                       highlightChakra: !prev.highlightChakra,
                     }))
                   }
-                  className={`relative w-10 h-5 rounded-full transition-colors ${
+                  className={cn(
+                    "relative w-10 h-5 rounded-full transition-colors",
                     settings.highlightChakra
                       ? "bg-leo-purple-600"
                       : "bg-leo-border-strong"
-                  }`}
+                  )}
                 >
                   <span
-                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                    className={cn(
+                      "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform",
                       settings.highlightChakra
                         ? "translate-x-5"
                         : "translate-x-0"
-                    }`}
+                    )}
                   />
                 </button>
               </label>
@@ -919,11 +925,12 @@ export default function Panel() {
               setActiveTab(tab.id);
               setSelectedOperationId(null);
             }}
-            className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+            className={cn(
+              "px-4 py-2 text-sm font-medium transition-colors relative",
               activeTab === tab.id
                 ? "text-purple-400"
                 : "text-gray-400 hover:text-gray-200"
-            }`}
+            )}
           >
             {tab.label}
             {tab.count !== undefined && tab.count > 0 && (
