@@ -11,8 +11,8 @@ interface OperationListProps {
   mockDataMap?: Record<string, string>;
   /** Map of operation names to enabled state */
   mockEnabledMap?: Record<string, boolean>;
-  /** Map of operation names to proxied data (non-null = has proxy result) */
-  proxiedDataMap?: Record<string, unknown>;
+  /** Set of operation names that have auto-proxy enabled */
+  proxyOperations?: Set<string>;
 }
 
 function Spinner() {
@@ -103,7 +103,7 @@ export function OperationList({
   operationType,
   mockDataMap = {},
   mockEnabledMap = {},
-  proxiedDataMap = {},
+  proxyOperations,
 }: OperationListProps) {
   // Helper to check if an operation has an active mock
   const hasMock = (operationName: string) => {
@@ -112,10 +112,10 @@ export function OperationList({
     return mockData && mockData.trim() !== "" && isEnabled;
   };
 
-  // Helper to check if an operation has proxied data
+  // Helper to check if an operation has auto-proxy enabled
+  // Only show P badge when auto-proxy is enabled for this operation
   const hasProxy = (operationName: string) => {
-    const proxiedData = proxiedDataMap[operationName];
-    return proxiedData !== undefined && proxiedData !== null;
+    return proxyOperations?.has(operationName) ?? false;
   };
   const [searchQuery, setSearchQuery] = useState("");
 

@@ -198,6 +198,22 @@ function savePersistedState(state: PersistedState): void {
   });
 }
 
+// Helper to clear proxy operations from persisted state (used on panel close)
+async function clearPersistedProxyOperations(): Promise<void> {
+  try {
+    if (!chrome?.storage?.local) return;
+    const result = await chrome.storage.local.get(STORAGE_KEY);
+    const persisted = result[STORAGE_KEY] as PersistedState | undefined;
+    if (persisted) {
+      persisted.proxyOperations = [];
+      await chrome.storage.local.set({ [STORAGE_KEY]: persisted });
+      console.log("[Leonardo.Ai] Cleared persisted proxy operations");
+    }
+  } catch (e) {
+    console.error("[Leonardo.Ai] Failed to clear persisted proxy operations:", e);
+  }
+}
+
 export default function Panel() {
   const [activeTab, setActiveTab] = useState<TabType>("queries");
   const [state, setState] = useState<ApolloState>({
@@ -686,6 +702,19 @@ export default function Panel() {
       tabId: chrome.devtools.inspectedWindow.tabId,
     });
 
+    // Handle panel close/refresh - clean up proxy connection
+    const handleBeforeUnload = () => {
+      if (proxyTargetTabIdRef.current) {
+        port.postMessage({ type: "PROXY_UNREGISTER" });
+      }
+      rpcClient.request("setProxyEnabled", { enabled: false }).catch(() => {
+        // Ignore errors
+      });
+      // Clear persisted proxy operations so P badges don't show on reload
+      clearPersistedProxyOperations();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     // Listen for non-RPC messages
     port.onMessage.addListener((message) => {
       console.log("[Leonardo.Ai] Panel received message:", message.type);
@@ -807,6 +836,22 @@ export default function Panel() {
 
     return () => {
       stopPolling();
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+
+      // Clean up proxy connection before disconnecting
+      if (proxyTargetTabIdRef.current) {
+        port.postMessage({ type: "PROXY_UNREGISTER" });
+        console.log("[Leonardo.Ai] Sent PROXY_UNREGISTER on panel cleanup");
+      }
+
+      // Disable proxy mode in injected script
+      rpcClient.request("setProxyEnabled", { enabled: false }).catch(() => {
+        // Ignore errors - page might already be gone
+      });
+
+      // Clear persisted proxy operations so P badges don't show on reload
+      clearPersistedProxyOperations();
+
       rpcClient.cleanup();
       port.disconnect();
     };
@@ -953,6 +998,8 @@ export default function Panel() {
     proxyTargetTabIdRef.current = null; // Clear ref
     setProxiedDataMap({});
     setProxyError(null);
+    // Clear proxy operations so P badges disappear
+    setProxyOperations(new Set());
     // Note: setProxyEnabled(false) is handled by the useEffect watching proxyTargetTabId
   }, []);
 
@@ -996,12 +1043,7 @@ export default function Panel() {
             next.delete(operationName);
             return next;
           });
-          // Also clear proxied data for this operation
-          setProxiedDataMap((prev) => {
-            const next = { ...prev };
-            delete next[operationName];
-            return next;
-          });
+          // Keep proxied data - it will be cleared on next request or when proxy is disconnected
         })
         .catch((err) => console.error(`[Leonardo.Ai] Failed to remove proxy operation:`, err));
     }
@@ -1249,7 +1291,7 @@ export default function Panel() {
                   operationType={activeTab as "queries" | "mutations"}
                   mockDataMap={mockDataMap}
                   mockEnabledMap={mockEnabledMap}
-                  proxiedDataMap={proxiedDataMap}
+                  proxyOperations={proxyOperations}
                 />
               </div>
             </ResizablePanel>

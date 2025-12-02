@@ -834,20 +834,43 @@ function OperationDetailInner({
           <div className="h-full flex flex-col">
             {/* Right Tabs */}
             <div className="flex border-b border-leo-border">
-              {rightTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setRightTab(tab.id)}
-                  className={cn(
-                    "px-4 py-2 text-xs font-medium transition-colors",
-                    rightTab === tab.id
-                      ? "text-purple-400 border-b-2 border-purple-500"
-                      : "text-gray-400 hover:text-gray-200"
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              {rightTabs.map((tab) => {
+                // Determine if mock is active (has data and is enabled)
+                const isMockActive = hasMockData && mockEnabled;
+                // Determine if proxy is active (connected and enabled for this operation)
+                const isProxyActive = proxyTargetTabId !== null && isProxyEnabled;
+
+                // Disable mock tab when proxy is active
+                const isMockDisabled = tab.id === "mock" && isProxyActive;
+                // Disable proxy tab when mock is active
+                const isProxyDisabled = tab.id === "proxy" && isMockActive;
+                const isDisabled = isMockDisabled || isProxyDisabled;
+
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => !isDisabled && setRightTab(tab.id)}
+                    disabled={isDisabled}
+                    className={cn(
+                      "px-4 py-2 text-xs font-medium transition-colors",
+                      rightTab === tab.id
+                        ? "text-purple-400 border-b-2 border-purple-500"
+                        : isDisabled
+                        ? "text-gray-600 cursor-not-allowed"
+                        : "text-gray-400 hover:text-gray-200"
+                    )}
+                    title={
+                      isMockDisabled
+                        ? "Disable proxy to use mock data"
+                        : isProxyDisabled
+                        ? "Disable mock to use proxy"
+                        : undefined
+                    }
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Right Content */}
@@ -1327,70 +1350,118 @@ function OperationDetailInner({
                 <div className="flex flex-col h-full">
                   {/* Proxy target selector - show when not connected */}
                   {!proxyTargetTabId && (
-                    <div className="space-y-4">
-                      <div className="text-sm text-gray-400">
-                        <p>
-                          Proxy this operation to another tab to execute it with
-                          that tab's authentication and headers.
-                        </p>
-                        <p className="mt-2 text-xs text-gray-500">
-                          Useful for testing local development against production data.
-                        </p>
-                      </div>
-
-                      {/* Available instances */}
+                    <div className="flex flex-col flex-1 pb-3 space-y-4">
+                      {/* No targets available */}
                       {proxyInstances.length === 0 ? (
-                        <div className="p-4 border border-dashed border-leo-border-strong rounded-lg text-center">
-                          <svg
-                            className="w-8 h-8 mx-auto mb-2 text-gray-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                            />
-                          </svg>
-                          <p className="text-sm text-gray-500">
-                            No other DevTools panels open
-                          </p>
-                          <p className="text-xs text-gray-600 mt-1">
-                            Open DevTools on another tab to proxy requests
-                          </p>
+                        <div className="relative p-3 border rounded bg-gray-500/10 border-gray-500/30">
+                          <div className="absolute top-2 right-2 flex items-center gap-1">
+                            {/* Disabled eye icon (enable/disable toggle) */}
+                            <button
+                              disabled
+                              className="p-1 rounded transition-colors cursor-not-allowed opacity-50"
+                              title="Connect to enable"
+                            >
+                              <svg
+                                className="w-4 h-4 text-gray-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
+                              </svg>
+                            </button>
+                            {/* Disabled refresh icon */}
+                            <button
+                              disabled
+                              className="p-1 rounded transition-colors cursor-not-allowed opacity-50"
+                              title="Connect to enable"
+                            >
+                              <svg
+                                className="w-4 h-4 text-gray-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                />
+                              </svg>
+                            </button>
+                            {/* Disabled power icon (no target to connect) */}
+                            <button
+                              disabled
+                              className="p-1 rounded transition-colors cursor-not-allowed opacity-50"
+                              title="No proxy target available"
+                            >
+                              <svg
+                                className="w-4 h-4 text-gray-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-3 pr-20">
+                            <svg
+                              className="w-5 h-5 shrink-0 text-gray-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate text-gray-500">
+                                No proxy target
+                              </p>
+                              <p className="text-xs mt-0.5 truncate text-gray-500">
+                                Open DevTools on another tab
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       ) : (
-                        <div className="space-y-2">
-                          <p className="text-xs text-gray-500 font-medium">
-                            Select a target tab:
-                          </p>
-                          {proxyInstances.map((instance) => (
-                            <button
-                              key={instance.tabId}
-                              onClick={() => onProxyRegister?.(instance.tabId)}
-                              className="w-full p-3 border border-leo-border-strong rounded-lg hover:border-orange-500/30 hover:bg-orange-500/5 transition-colors text-left group"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    instance.isConnected
-                                      ? "bg-green-500"
-                                      : "bg-gray-500"
-                                  )}
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm text-gray-300 truncate group-hover:text-orange-300">
-                                    {instance.title || "Untitled"}
-                                  </p>
-                                  <p className="text-xs text-gray-500 truncate">
-                                    {instance.url}
-                                  </p>
-                                </div>
+                        /* Available proxy targets - show as selectable cards */
+                        proxyInstances.map((instance) => (
+                          <div
+                            key={instance.tabId}
+                            className="relative p-3 border rounded bg-gray-500/10 border-gray-500/30"
+                          >
+                            <div className="absolute top-2 right-2 flex items-center gap-1">
+                              {/* Disabled eye icon (enable/disable toggle) */}
+                              <button
+                                disabled
+                                className="p-1 rounded transition-colors cursor-not-allowed opacity-50"
+                                title="Connect to enable"
+                              >
                                 <svg
-                                  className="w-4 h-4 text-gray-600 group-hover:text-orange-400"
+                                  className="w-4 h-4 text-gray-500"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -1399,13 +1470,89 @@ function OperationDetailInner({
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
                                     strokeWidth={2}
-                                    d="M9 5l7 7-7 7"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                  />
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                                   />
                                 </svg>
+                              </button>
+                              {/* Disabled refresh icon */}
+                              <button
+                                disabled
+                                className="p-1 rounded transition-colors cursor-not-allowed opacity-50"
+                                title="Connect to enable"
+                              >
+                                <svg
+                                  className="w-4 h-4 text-gray-500"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                  />
+                                </svg>
+                              </button>
+                              {/* Power icon (connect) - only this button is clickable */}
+                              <button
+                                onClick={() => {
+                                  // Connect to proxy AND enable auto-proxy for this operation
+                                  onProxyRegister?.(instance.tabId);
+                                  onProxyOperationToggle?.(
+                                    operation.operationName,
+                                    true
+                                  );
+                                }}
+                                className="p-1 rounded transition-colors hover:bg-orange-500/20 text-gray-500 hover:text-orange-400"
+                                title="Connect to proxy"
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-3 pr-20">
+                              <svg
+                                className="w-5 h-5 shrink-0 text-gray-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                />
+                              </svg>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate text-gray-500">
+                                  {instance.title || instance.url}
+                                </p>
+                                <p className="text-xs mt-0.5 truncate text-gray-500">
+                                  {instance.url}
+                                </p>
                               </div>
-                            </button>
-                          ))}
-                        </div>
+                            </div>
+                          </div>
+                        ))
                       )}
 
                       {proxyError && (
@@ -1414,102 +1561,201 @@ function OperationDetailInner({
                     </div>
                   )}
 
-                  {/* Connected to proxy - show controls and data */}
+                  {/* Connected to proxy - compact card like mock data card */}
                   {proxyTargetTabId && (
-                    <div className="space-y-4">
-                      {/* Connected status card */}
-                      <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                            <span className="text-sm text-orange-300">
-                              Proxying to tab {String(proxyTargetTabId)}
-                            </span>
-                          </div>
+                    <div className="flex flex-col flex-1 pb-3 space-y-4">
+                      {/* Proxy card header with target info and actions */}
+                      <div
+                        className={cn(
+                          "relative p-3 border rounded",
+                          isProxyEnabled
+                            ? "bg-orange-500/10 border-orange-500/30"
+                            : "bg-gray-500/10 border-gray-500/30"
+                        )}
+                      >
+                        <div className="absolute top-2 right-2 flex items-center gap-1">
+                          {/* Enable/Disable auto-proxy toggle */}
+                          <button
+                            onClick={() =>
+                              onProxyOperationToggle?.(
+                                operation.operationName,
+                                !isProxyEnabled
+                              )
+                            }
+                            className={cn(
+                              "p-1 rounded transition-colors",
+                              isProxyEnabled
+                                ? "hover:bg-orange-500/20 text-orange-400 hover:text-orange-300"
+                                : "hover:bg-gray-500/20 text-gray-500 hover:text-gray-300"
+                            )}
+                            title={
+                              isProxyEnabled
+                                ? "Disable auto-proxy"
+                                : "Enable auto-proxy"
+                            }
+                          >
+                            {isProxyEnabled ? (
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                                />
+                              </svg>
+                            )}
+                          </button>
+                          {/* Manual proxy request (refresh) - disabled when auto-proxy is off */}
+                          <button
+                            onClick={() =>
+                              isProxyEnabled && onProxyRequest?.(operation)
+                            }
+                            disabled={!isProxyEnabled}
+                            className={cn(
+                              "p-1 rounded transition-colors",
+                              isProxyEnabled
+                                ? "hover:bg-orange-500/20 cursor-pointer"
+                                : "cursor-not-allowed opacity-50"
+                            )}
+                            title={
+                              isProxyEnabled
+                                ? "Execute proxy request"
+                                : "Enable auto-proxy to execute requests"
+                            }
+                          >
+                            <svg
+                              className={cn(
+                                "w-4 h-4",
+                                isProxyEnabled
+                                  ? "text-orange-400 hover:text-orange-300"
+                                  : "text-gray-500"
+                              )}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                              />
+                            </svg>
+                          </button>
+                          {/* Power button - disconnect proxy */}
                           <button
                             onClick={onProxyUnregister}
-                            className="px-2 py-1 text-xs text-orange-400 hover:text-orange-300 hover:bg-orange-500/20 rounded transition-colors"
+                            className={cn(
+                              "p-1 rounded transition-colors",
+                              isProxyEnabled
+                                ? "hover:bg-orange-500/20"
+                                : "hover:bg-gray-500/20"
+                            )}
+                            title="Disconnect proxy"
                           >
-                            Disconnect
+                            <svg
+                              className={cn(
+                                "w-4 h-4",
+                                isProxyEnabled
+                                  ? "text-orange-400 hover:text-orange-300"
+                                  : "text-gray-500 hover:text-gray-300"
+                              )}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9"
+                              />
+                            </svg>
                           </button>
                         </div>
-                      </div>
-
-                      {/* Auto-proxy toggle for this operation */}
-                      <div className="p-3 bg-leo-elevated border border-leo-border-strong rounded">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-sm text-gray-300">
-                              Auto-proxy this operation
-                            </span>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              Automatically intercept and proxy requests for {operation.operationName}
+                        <div className="flex items-center gap-3 pr-20">
+                          {/* Proxy icon */}
+                          <svg
+                            className={cn(
+                              "w-5 h-5 shrink-0",
+                              isProxyEnabled ? "text-orange-400" : "text-gray-500"
+                            )}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className={cn(
+                                "text-sm font-medium truncate",
+                                isProxyEnabled
+                                  ? "text-orange-400"
+                                  : "text-gray-500"
+                              )}
+                            >
+                              {proxyInstances.find(
+                                (i) => i.tabId === proxyTargetTabId
+                              )?.title || `Tab ${proxyTargetTabId}`}
+                            </p>
+                            <p
+                              className={cn(
+                                "text-xs mt-0.5 truncate",
+                                isProxyEnabled
+                                  ? "text-orange-300"
+                                  : "text-gray-500"
+                              )}
+                            >
+                              {proxyInstances.find(
+                                (i) => i.tabId === proxyTargetTabId
+                              )?.url || "Connected"}
                             </p>
                           </div>
-                          <button
-                            onClick={() => onProxyOperationToggle?.(operation.operationName, !isProxyEnabled)}
-                            className={cn(
-                              "relative w-10 h-5 rounded-full transition-colors",
-                              isProxyEnabled
-                                ? "bg-orange-500"
-                                : "bg-leo-border-strong"
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform",
-                                isProxyEnabled
-                                  ? "translate-x-5"
-                                  : "translate-x-0"
-                              )}
-                            />
-                          </button>
                         </div>
                       </div>
 
-                      {/* Execute proxy request button */}
-                      <button
-                        onClick={() => onProxyRequest?.(operation)}
-                        className="w-full px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 rounded text-orange-300 text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        Execute via Proxy (manual)
-                      </button>
-
-                      {/* Proxied data result */}
-                      {proxiedData !== undefined && proxiedData !== null && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-xs font-medium text-orange-400">
-                              Proxied Result
-                            </h3>
-                          </div>
+                      {/* Proxied data result - only show when enabled */}
+                      {isProxyEnabled &&
+                        proxiedData !== undefined &&
+                        proxiedData !== null && (
                           <EditableJsonTree
                             data={proxiedData}
                             readOnly
                             collapsed={jsonCollapsed}
                             showCopyButton
                           />
-                        </div>
-                      )}
+                        )}
                     </div>
                   )}
                 </div>
