@@ -4,7 +4,7 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
-import { GraphQLOperation } from "@src/shared/types";
+import { GraphQLOperation, ProxyInstance } from "@src/shared/types";
 import { cn } from "@src/shared/cn";
 import { EditableJsonTree } from "./EditableJsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
@@ -65,10 +65,18 @@ interface OperationDetailProps {
   ) => void;
   onMockEnabledChange?: (operationName: string, enabled: boolean) => void;
   autoExpandJson?: boolean;
+  // Proxy props
+  proxyInstances?: ProxyInstance[];
+  proxyTargetTabId?: number | null;
+  proxyError?: string | null;
+  proxiedData?: unknown;
+  onProxyRegister?: (targetTabId: number) => void;
+  onProxyUnregister?: () => void;
+  onProxyRequest?: (operation: GraphQLOperation) => void;
 }
 
 type LeftTab = "request" | "query" | "variables" | "policy";
-type RightTab = "response" | "result" | "cache" | "mock";
+type RightTab = "response" | "result" | "cache" | "mock" | "proxy";
 
 // Result tab component with proper warning/copy button positioning
 interface ResultTabProps {
@@ -271,7 +279,13 @@ function arePropsEqual(
     prevProps.mockEnabled !== nextProps.mockEnabled ||
     prevProps.autoExpandJson !== nextProps.autoExpandJson ||
     prevProps.onMockDataChange !== nextProps.onMockDataChange ||
-    prevProps.onMockEnabledChange !== nextProps.onMockEnabledChange
+    prevProps.onMockEnabledChange !== nextProps.onMockEnabledChange ||
+    // Proxy props
+    prevProps.proxyTargetTabId !== nextProps.proxyTargetTabId ||
+    prevProps.proxyError !== nextProps.proxyError ||
+    prevProps.onProxyRegister !== nextProps.onProxyRegister ||
+    prevProps.onProxyUnregister !== nextProps.onProxyUnregister ||
+    prevProps.onProxyRequest !== nextProps.onProxyRequest
   ) {
     return false;
   }
@@ -282,6 +296,25 @@ function arePropsEqual(
     prevProps.mockFileInfo?.fileSize !== nextProps.mockFileInfo?.fileSize
   ) {
     return false;
+  }
+
+  // Check proxy instances (shallow array comparison)
+  if (prevProps.proxyInstances?.length !== nextProps.proxyInstances?.length) {
+    return false;
+  }
+
+  // Check proxied data
+  try {
+    if (
+      JSON.stringify(prevProps.proxiedData) !==
+      JSON.stringify(nextProps.proxiedData)
+    ) {
+      return false;
+    }
+  } catch {
+    if (prevProps.proxiedData !== nextProps.proxiedData) {
+      return false;
+    }
   }
 
   // Deep compare operation - use JSON.stringify for stable comparison
@@ -303,6 +336,14 @@ function OperationDetailInner({
   onMockDataChange,
   onMockEnabledChange,
   autoExpandJson = false,
+  // Proxy props
+  proxyInstances = [],
+  proxyTargetTabId = null,
+  proxyError = null,
+  proxiedData,
+  onProxyRegister,
+  onProxyUnregister,
+  onProxyRequest,
 }: OperationDetailProps) {
   // When autoExpandJson is true, set collapsed to false to expand all nodes
   // collapsed=1 keeps root expanded but collapses nested objects/arrays
@@ -329,6 +370,7 @@ function OperationDetailInner({
     { id: "result", label: "Data" },
     { id: "cache", label: "Cache Data" },
     { id: "mock", label: "Mock Data" },
+    { id: "proxy", label: "Proxy Data" },
   ];
 
   // Parse mock data if available - supports both JSON and JS mock formats
@@ -1270,6 +1312,166 @@ function OperationDetailInner({
                             </p>
                           </>
                         )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {rightTab === "proxy" && (
+                <div className="flex flex-col h-full">
+                  {/* Proxy target selector - show when not connected */}
+                  {!proxyTargetTabId && (
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-400">
+                        <p>
+                          Proxy this operation to another tab to execute it with
+                          that tab's authentication and headers.
+                        </p>
+                        <p className="mt-2 text-xs text-gray-500">
+                          Useful for testing local development against production data.
+                        </p>
+                      </div>
+
+                      {/* Available instances */}
+                      {proxyInstances.length === 0 ? (
+                        <div className="p-4 border border-dashed border-leo-border-strong rounded-lg text-center">
+                          <svg
+                            className="w-8 h-8 mx-auto mb-2 text-gray-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                            />
+                          </svg>
+                          <p className="text-sm text-gray-500">
+                            No other DevTools panels open
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Open DevTools on another tab to proxy requests
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-500 font-medium">
+                            Select a target tab:
+                          </p>
+                          {proxyInstances.map((instance) => (
+                            <button
+                              key={instance.tabId}
+                              onClick={() => onProxyRegister?.(instance.tabId)}
+                              className="w-full p-3 border border-leo-border-strong rounded-lg hover:border-orange-500/30 hover:bg-orange-500/5 transition-colors text-left group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    instance.isConnected
+                                      ? "bg-green-500"
+                                      : "bg-gray-500"
+                                  )}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-gray-300 truncate group-hover:text-orange-300">
+                                    {instance.title || "Untitled"}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {instance.url}
+                                  </p>
+                                </div>
+                                <svg
+                                  className="w-4 h-4 text-gray-600 group-hover:text-orange-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                  />
+                                </svg>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {proxyError && (
+                        <p className="text-xs text-red-400">{proxyError}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Connected to proxy - show controls and data */}
+                  {proxyTargetTabId && (
+                    <div className="space-y-4">
+                      {/* Connected status card */}
+                      <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                            <span className="text-sm text-orange-300">
+                              Proxying to tab {String(proxyTargetTabId)}
+                            </span>
+                          </div>
+                          <button
+                            onClick={onProxyUnregister}
+                            className="px-2 py-1 text-xs text-orange-400 hover:text-orange-300 hover:bg-orange-500/20 rounded transition-colors"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Execute proxy request button */}
+                      <button
+                        onClick={() => onProxyRequest?.(operation)}
+                        className="w-full px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 rounded text-orange-300 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        Execute via Proxy
+                      </button>
+
+                      {/* Proxied data result */}
+                      {proxiedData !== undefined && proxiedData !== null && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-xs font-medium text-orange-400">
+                              Proxied Result
+                            </h3>
+                          </div>
+                          <EditableJsonTree
+                            data={proxiedData}
+                            readOnly
+                            collapsed={jsonCollapsed}
+                            showCopyButton
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

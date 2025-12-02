@@ -1,8 +1,11 @@
 // Background service worker - manages connections between content scripts and devtools
+import type { ProxyInstance, ProxyRequest, ProxyResponse } from "@src/shared/types";
 
 interface DevToolsConnection {
   port: chrome.runtime.Port;
   tabId: number;
+  url?: string;
+  title?: string;
 }
 
 const devtoolsConnections = new Map<number, DevToolsConnection>();
@@ -10,6 +13,41 @@ const tabData = new Map<
   number,
   { apolloDetected: boolean; cache: unknown }
 >();
+
+// Track proxy relationships: sourceTabId -> targetTabId
+const proxyTargets = new Map<number, number>();
+// Track pending proxy requests: requestId -> sourceTabId
+const pendingProxyRequests = new Map<string, number>();
+
+// Get list of available proxy instances (other connected panels)
+function getProxyInstances(excludeTabId: number): ProxyInstance[] {
+  const instances: ProxyInstance[] = [];
+  for (const [tabId, conn] of devtoolsConnections) {
+    if (tabId !== excludeTabId) {
+      const data = tabData.get(tabId);
+      instances.push({
+        tabId,
+        url: conn.url || "Unknown",
+        title: conn.title,
+        isConnected: data?.apolloDetected ?? false,
+      });
+    }
+  }
+  return instances;
+}
+
+// Broadcast proxy instances to all connected panels
+function broadcastProxyInstances() {
+  console.log(`[Leonardo.Ai] Broadcasting proxy instances to ${devtoolsConnections.size} panels`);
+  for (const [tabId, conn] of devtoolsConnections) {
+    const instances = getProxyInstances(tabId);
+    console.log(`[Leonardo.Ai] Sending ${instances.length} instances to tab ${tabId}:`, instances);
+    conn.port.postMessage({
+      type: "PROXY_INSTANCES_UPDATE",
+      payload: instances,
+    });
+  }
+}
 
 // Handle connections from DevTools panels
 chrome.runtime.onConnect.addListener((port) => {
@@ -20,7 +58,27 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener((message) => {
     if (message.type === "INIT") {
       tabId = message.tabId as number;
-      devtoolsConnections.set(tabId, { port, tabId });
+
+      // Get tab info for proxy instance list
+      chrome.tabs.get(tabId).then((tab) => {
+        devtoolsConnections.set(tabId!, {
+          port,
+          tabId: tabId!,
+          url: tab.url,
+          title: tab.title,
+        });
+
+        console.log(`[Leonardo.Ai] Panel registered for tab ${tabId}, total connections: ${devtoolsConnections.size}`);
+
+        // Broadcast updated instance list to all panels
+        broadcastProxyInstances();
+      }).catch((error) => {
+        console.log(`[Leonardo.Ai] Failed to get tab info for ${tabId}:`, error);
+        devtoolsConnections.set(tabId!, { port, tabId: tabId! });
+
+        // Still broadcast even if we couldn't get tab info
+        broadcastProxyInstances();
+      });
 
       // Send any cached data for this tab
       const data = tabData.get(tabId);
@@ -39,6 +97,12 @@ chrome.runtime.onConnect.addListener((port) => {
     // Handle RPC requests from panel
     if (message.type === "RPC_REQUEST" && tabId !== null) {
       const requestId = message.requestId || Date.now().toString();
+      console.log(`[Leonardo.Ai] Background: RPC request ${message.method} for tab ${tabId}`);
+
+      // Extra logging for setProxyEnabled to debug
+      if (message.method === "setProxyEnabled") {
+        console.log(`[Leonardo.Ai] Background: setProxyEnabled request received! params:`, message.params, `sending to tab ${tabId}`);
+      }
 
       // Forward RPC request to content script and wait for response
       chrome.tabs
@@ -79,22 +143,174 @@ chrome.runtime.onConnect.addListener((port) => {
           // Tab might not be ready
         });
     }
+
+    // Handle proxy target registration from panel
+    if (message.type === "PROXY_REGISTER" && tabId !== null) {
+      const targetTabId = message.payload?.targetTabId as number | undefined;
+      if (targetTabId && devtoolsConnections.has(targetTabId)) {
+        proxyTargets.set(tabId, targetTabId);
+        console.log(`[Leonardo.Ai] Proxy registered: ${tabId} -> ${targetTabId}`);
+        port.postMessage({
+          type: "PROXY_REGISTER",
+          payload: { success: true, targetTabId },
+        });
+      } else {
+        port.postMessage({
+          type: "PROXY_REGISTER",
+          payload: { success: false, error: "Target tab not available" },
+        });
+      }
+    }
+
+    // Handle proxy unregistration
+    if (message.type === "PROXY_UNREGISTER" && tabId !== null) {
+      proxyTargets.delete(tabId);
+      console.log(`[Leonardo.Ai] Proxy unregistered for tab ${tabId}`);
+    }
+
+    // Handle proxy request - forward operation to target tab
+    if (message.type === "PROXY_REQUEST" && tabId !== null) {
+      const targetTabId = proxyTargets.get(tabId);
+      const requestId = message.payload?.requestId as string;
+
+      if (!targetTabId) {
+        port.postMessage({
+          type: "PROXY_RESPONSE",
+          payload: { requestId, error: "No proxy target configured" } as ProxyResponse,
+        });
+        return;
+      }
+
+      const targetConnection = devtoolsConnections.get(targetTabId);
+      if (!targetConnection) {
+        // Target disconnected - clear proxy and notify
+        proxyTargets.delete(tabId);
+        port.postMessage({
+          type: "PROXY_RESPONSE",
+          payload: { requestId, error: "Proxy target disconnected" } as ProxyResponse,
+        });
+        broadcastProxyInstances();
+        return;
+      }
+
+      // Store pending request
+      pendingProxyRequests.set(requestId, tabId);
+
+      // Forward the request to the target tab's content script to execute
+      chrome.tabs
+        .sendMessage(targetTabId, {
+          source: "apollo-lite-devtools-background",
+          type: "PROXY_REQUEST",
+          payload: message.payload,
+        })
+        .then((response) => {
+          // Send response back to source panel
+          port.postMessage({
+            type: "PROXY_RESPONSE",
+            payload: response,
+          });
+          pendingProxyRequests.delete(requestId);
+        })
+        .catch((error) => {
+          port.postMessage({
+            type: "PROXY_RESPONSE",
+            payload: { requestId, error: error.message || "Proxy request failed" } as ProxyResponse,
+          });
+          pendingProxyRequests.delete(requestId);
+        });
+    }
   });
 
   port.onDisconnect.addListener(() => {
     if (tabId !== null) {
       devtoolsConnections.delete(tabId);
+
+      // Clean up any proxy relationships involving this tab
+      proxyTargets.delete(tabId);
+      // Also remove any proxies that were targeting this tab
+      for (const [sourceId, targetId] of proxyTargets) {
+        if (targetId === tabId) {
+          proxyTargets.delete(sourceId);
+          // Notify the source panel that proxy target is gone
+          const sourceConn = devtoolsConnections.get(sourceId);
+          if (sourceConn) {
+            sourceConn.port.postMessage({
+              type: "PROXY_UNREGISTER",
+              payload: { reason: "Target disconnected" },
+            });
+          }
+        }
+      }
+
+      // Broadcast updated instance list
+      broadcastProxyInstances();
+
       console.log(`[Leonardo.Ai] DevTools disconnected for tab ${tabId}`);
     }
   });
 });
 
 // Handle messages from content scripts
-chrome.runtime.onMessage.addListener((message, sender) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.source !== "apollo-lite-devtools-content") return;
 
   const tabId = sender.tab?.id;
   if (!tabId) return;
+
+  // Handle proxy fetch requests - these need to be forwarded to the target tab
+  if (message.type === "PROXY_FETCH_REQUEST") {
+    const targetTabId = proxyTargets.get(tabId);
+    const payload = message.payload as ProxyRequest;
+
+    if (!targetTabId) {
+      sendResponse({
+        requestId: payload?.requestId,
+        error: "No proxy target configured. Please select a target tab in the Proxy Data panel.",
+      });
+      return true;
+    }
+
+    const targetConnection = devtoolsConnections.get(targetTabId);
+    if (!targetConnection) {
+      // Target disconnected - clear proxy
+      proxyTargets.delete(tabId);
+      sendResponse({
+        requestId: payload?.requestId,
+        error: "Proxy target disconnected",
+      });
+      broadcastProxyInstances();
+      return true;
+    }
+
+    console.log(`[Leonardo.Ai] Proxy fetch: ${payload?.operationName} from tab ${tabId} to tab ${targetTabId}`);
+
+    // Forward the request to the target tab's content script to execute
+    chrome.tabs
+      .sendMessage(targetTabId, {
+        source: "apollo-lite-devtools-background",
+        type: "PROXY_REQUEST",
+        payload: {
+          requestId: payload?.requestId,
+          operationName: payload?.operationName,
+          query: payload?.query,
+          variables: payload?.variables,
+        },
+      })
+      .then((response) => {
+        console.log(`[Leonardo.Ai] Proxy response received for: ${payload?.operationName}`);
+        sendResponse(response);
+      })
+      .catch((error) => {
+        console.error(`[Leonardo.Ai] Proxy fetch error:`, error);
+        sendResponse({
+          requestId: payload?.requestId,
+          error: error.message || "Proxy request failed",
+        });
+      });
+
+    // Return true to indicate we'll respond asynchronously
+    return true;
+  }
 
   // Initialize tab data if needed
   if (!tabData.has(tabId)) {
@@ -156,11 +372,32 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         cache: null,
       });
 
-      // Notify DevTools
+      // Note: We do NOT clear proxy relationships when the SOURCE tab navigates/refreshes
+      // The proxy should persist across refreshes, just like mocks do.
+      // The panel will re-enable proxy mode in the injected script when Apollo is detected.
+
+      // However, if this tab is a PROXY TARGET, notify source tabs that the target refreshed
+      // (they may want to know, but we still keep the registration)
+      for (const [sourceId, targetId] of proxyTargets) {
+        if (targetId === tabId) {
+          const sourceConn = devtoolsConnections.get(sourceId);
+          if (sourceConn) {
+            // Just notify, don't unregister - let the source decide
+            sourceConn.port.postMessage({
+              type: "PROXY_TARGET_REFRESHED",
+              payload: { targetTabId: tabId },
+            });
+          }
+        }
+      }
+
+      // Update URL in connection info and broadcast
       const connection = devtoolsConnections.get(tabId);
       if (connection) {
+        connection.url = newUrl;
         connection.port.postMessage({ type: "TAB_NAVIGATED" });
       }
+      broadcastProxyInstances();
     }
   }
 

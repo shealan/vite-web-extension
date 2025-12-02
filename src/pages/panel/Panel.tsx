@@ -10,6 +10,7 @@ import {
   RpcMethod,
   RawWatchedQuery,
   RawMutation,
+  ProxyInstance,
 } from "@src/shared/types";
 import { cn } from "@src/shared/cn";
 import { OperationList } from "./components/OperationList";
@@ -218,11 +219,22 @@ export default function Panel() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Proxy state
+  const [proxyInstances, setProxyInstances] = useState<ProxyInstance[]>([]);
+  const [proxyTargetTabId, setProxyTargetTabId] = useState<number | null>(null);
+  const [proxyError, setProxyError] = useState<string | null>(null);
+  // Track which operations have proxied data: operationName -> proxied result
+  const [proxiedDataMap, setProxiedDataMap] = useState<Record<string, unknown>>({});
+
   const portRef = useRef<chrome.runtime.Port | null>(null);
   const rpcClientRef = useRef<ReturnType<typeof createRpcClient> | null>(null);
   const pollingIntervalRef = useRef<number | null>(null);
   // Track which operations have been seen since last clear
   const seenOperationsRef = useRef<Set<string> | null>(null);
+  // Track proxy target for reconnection (refs persist across effect re-runs)
+  const proxyTargetTabIdRef = useRef<number | null>(null);
+  // Track if proxy mode has been enabled (to avoid redundant RPC calls)
+  const proxyEnabledSentRef = useRef<boolean>(false);
 
   // Derive selected operation from current operations list to stay reactive
   const selectedOperation = selectedOperationId
@@ -474,6 +486,38 @@ export default function Panel() {
     injectChakraHighlighter(settings.highlightChakra);
   }, [settings.highlightChakra, isInitialized, injectChakraHighlighter]);
 
+  // Enable/disable proxy mode when proxy target and connection state changes
+  // This ensures we only send setProxyEnabled RPC when content script is ready
+  // Uses a ref to track if we've already sent the enable command to avoid redundant calls
+  useEffect(() => {
+    if (!rpcClientRef.current) return;
+
+    const shouldBeEnabled = !!(proxyTargetTabId && state.isConnected);
+    const currentlySent = proxyEnabledSentRef.current;
+
+    // Only send RPC if state actually changed
+    if (shouldBeEnabled && !currentlySent) {
+      console.log("[Leonardo.Ai] Enabling proxy mode - Apollo connected and proxy target configured");
+      proxyEnabledSentRef.current = true;
+      rpcClientRef.current.request("setProxyEnabled", { enabled: true })
+        .then((result) => console.log("[Leonardo.Ai] Proxy mode enabled in injected script, result:", result))
+        .catch((err) => {
+          console.error("[Leonardo.Ai] Failed to enable proxy mode:", err);
+          proxyEnabledSentRef.current = false; // Reset so we can retry
+        });
+    } else if (!shouldBeEnabled && currentlySent) {
+      // Only send disable if we previously sent enable
+      console.log("[Leonardo.Ai] Disabling proxy mode - proxy target removed");
+      proxyEnabledSentRef.current = false;
+      rpcClientRef.current.request("setProxyEnabled", { enabled: false })
+        .then(() => console.log("[Leonardo.Ai] Proxy mode disabled in injected script"))
+        .catch((err) => {
+          // Ignore errors when disabling - content script might not be ready
+          console.log("[Leonardo.Ai] Failed to disable proxy mode (expected if not connected):", err.message);
+        });
+    }
+  }, [proxyTargetTabId, state.isConnected]);
+
   // Fetch data via RPC and convert to operations
   const fetchData = useCallback(async () => {
     if (!rpcClientRef.current) return;
@@ -512,6 +556,18 @@ export default function Panel() {
 
           return false;
         });
+      }
+
+      // Update proxiedDataMap based on isProxied flag from raw queries
+      // This ensures the orange "P" badge shows for automatically proxied operations
+      const newProxiedData: Record<string, unknown> = {};
+      for (const q of queries || []) {
+        if (q.isProxied && q.lastResponse) {
+          newProxiedData[q.operationName] = q.lastResponse;
+        }
+      }
+      if (Object.keys(newProxiedData).length > 0) {
+        setProxiedDataMap((prev) => ({ ...prev, ...newProxiedData }));
       }
 
       setState((prev) => {
@@ -595,6 +651,7 @@ export default function Panel() {
 
     // Listen for non-RPC messages
     port.onMessage.addListener((message) => {
+      console.log("[Leonardo.Ai] Panel received message:", message.type);
       switch (message.type) {
         case "APOLLO_CLIENT_DETECTED":
           setState((prev) => ({ ...prev, isConnected: true }));
@@ -626,12 +683,78 @@ export default function Panel() {
           }));
           // Reset the filter so new queries after navigation are shown
           seenOperationsRef.current = null;
+          // Reset proxy enabled tracking - the injected script was reloaded and lost its state
+          // This allows the useEffect to re-send setProxyEnabled when Apollo is detected again
+          proxyEnabledSentRef.current = false;
+          break;
+
+        case "PROXY_INSTANCES_UPDATE":
+          // Update the list of available proxy targets
+          setProxyInstances(message.payload as ProxyInstance[]);
+          break;
+
+        case "PROXY_REGISTER":
+          // Handle proxy registration response
+          if (message.payload?.success) {
+            const targetTabId = message.payload.targetTabId;
+            setProxyTargetTabId(targetTabId);
+            proxyTargetTabIdRef.current = targetTabId; // Keep ref in sync for reconnection
+            setProxyError(null);
+            const currentTabId = chrome.devtools.inspectedWindow.tabId;
+            console.log(`[Leonardo.Ai] Proxy registered: source tab ${currentTabId} -> target tab ${targetTabId}`);
+            // Note: setProxyEnabled will be called by the useEffect that watches for
+            // proxyTargetTabId + state.isConnected changes. This ensures we only send
+            // the RPC when the content script is ready (Apollo detected).
+          } else {
+            setProxyError(message.payload?.error || "Failed to register proxy");
+            setProxyTargetTabId(null);
+            proxyTargetTabIdRef.current = null;
+          }
+          break;
+
+        case "PROXY_UNREGISTER":
+          // Proxy was disconnected (target tab closed/refreshed)
+          setProxyTargetTabId(null);
+          proxyTargetTabIdRef.current = null; // Clear ref
+          setProxiedDataMap({});
+          console.log(`[Leonardo.Ai] Proxy unregistered: ${message.payload?.reason || "unknown"}`);
+          // Note: setProxyEnabled(false) is handled by the useEffect watching proxyTargetTabId
+          break;
+
+        case "PROXY_RESPONSE":
+          // Handle proxy response for an operation
+          if (message.payload?.requestId && message.payload?.data) {
+            const operationName = message.payload.requestId.split("-")[0];
+            setProxiedDataMap((prev) => ({
+              ...prev,
+              [operationName]: message.payload.data,
+            }));
+          }
+          break;
+
+        case "PROXY_TARGET_REFRESHED":
+          // Target tab was refreshed - just log, keep the proxy connection
+          // The proxy will continue working once target's Apollo Client is ready again
+          console.log(`[Leonardo.Ai] Proxy target tab ${message.payload?.targetTabId} was refreshed`);
           break;
       }
     });
 
     // Start polling immediately
     startPolling();
+
+    // Re-register proxy if we had one configured (handles reconnection after port disconnect)
+    // We use a small delay to ensure the connection is fully established
+    const savedProxyTarget = proxyTargetTabIdRef.current;
+    if (savedProxyTarget) {
+      console.log(`[Leonardo.Ai] Re-registering proxy to target ${savedProxyTarget} after reconnection`);
+      setTimeout(() => {
+        port.postMessage({
+          type: "PROXY_REGISTER",
+          payload: { targetTabId: savedProxyTarget },
+        });
+      }, 100);
+    }
 
     // Handle port disconnect
     port.onDisconnect.addListener(() => {
@@ -763,6 +886,52 @@ export default function Panel() {
     },
     [mockDataMap]
   );
+
+  // Proxy handlers
+  const handleProxyRegister = useCallback((targetTabId: number) => {
+    console.log("[Leonardo.Ai] handleProxyRegister called with targetTabId:", targetTabId);
+    if (!portRef.current) {
+      console.error("[Leonardo.Ai] portRef.current is null in handleProxyRegister!");
+      return;
+    }
+
+    console.log("[Leonardo.Ai] Sending PROXY_REGISTER message...");
+    portRef.current.postMessage({
+      type: "PROXY_REGISTER",
+      payload: { targetTabId },
+    });
+  }, []);
+
+  const handleProxyUnregister = useCallback(() => {
+    if (!portRef.current) return;
+
+    portRef.current.postMessage({
+      type: "PROXY_UNREGISTER",
+    });
+    setProxyTargetTabId(null);
+    proxyTargetTabIdRef.current = null; // Clear ref
+    setProxiedDataMap({});
+    setProxyError(null);
+    // Note: setProxyEnabled(false) is handled by the useEffect watching proxyTargetTabId
+  }, []);
+
+  // Execute a proxy request for an operation
+  const handleProxyRequest = useCallback((operation: GraphQLOperation) => {
+    if (!portRef.current || !proxyTargetTabId) return;
+
+    const requestId = `${operation.operationName}-${Date.now()}`;
+
+    portRef.current.postMessage({
+      type: "PROXY_REQUEST",
+      payload: {
+        requestId,
+        operationName: operation.operationName,
+        query: operation.query,
+        variables: operation.variables,
+        sourceTabId: chrome.devtools.inspectedWindow.tabId,
+      },
+    });
+  }, [proxyTargetTabId]);
 
   const tabs: { id: TabType; label: string; count?: number }[] = [
     { id: "queries", label: "Queries", count: queries.length },
@@ -1006,6 +1175,7 @@ export default function Panel() {
                   operationType={activeTab as "queries" | "mutations"}
                   mockDataMap={mockDataMap}
                   mockEnabledMap={mockEnabledMap}
+                  proxiedDataMap={proxiedDataMap}
                 />
               </div>
             </ResizablePanel>
@@ -1030,6 +1200,14 @@ export default function Panel() {
                     onMockDataChange={handleMockDataChange}
                     onMockEnabledChange={handleMockEnabledChange}
                     autoExpandJson={settings.autoExpandJson}
+                    // Proxy props
+                    proxyInstances={proxyInstances}
+                    proxyTargetTabId={proxyTargetTabId}
+                    proxyError={proxyError}
+                    proxiedData={proxiedDataMap[selectedOperation.operationName]}
+                    onProxyRegister={handleProxyRegister}
+                    onProxyUnregister={handleProxyUnregister}
+                    onProxyRequest={handleProxyRequest}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-500">

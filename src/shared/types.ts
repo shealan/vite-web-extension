@@ -42,7 +42,14 @@ export type MessageType =
   | 'REQUEST_CACHE'
   | 'RPC_REQUEST'
   | 'RPC_RESPONSE'
-  | 'TAB_NAVIGATED';
+  | 'TAB_NAVIGATED'
+  // Proxy-related message types
+  | 'PROXY_REGISTER'
+  | 'PROXY_UNREGISTER'
+  | 'PROXY_INSTANCES_UPDATE'
+  | 'PROXY_REQUEST'
+  | 'PROXY_RESPONSE'
+  | 'PROXY_TARGET_REFRESHED';
 
 export interface ExtensionMessage {
   source: 'apollo-lite-devtools';
@@ -52,7 +59,30 @@ export interface ExtensionMessage {
 }
 
 // RPC types for internal use
-export type RpcMethod = 'getQueries' | 'getMutations' | 'getCache' | 'getClientInfo' | 'setMockData' | 'getMockData' | 'clearAllMocks';
+export type RpcMethod = 'getQueries' | 'getMutations' | 'getCache' | 'getClientInfo' | 'setMockData' | 'getMockData' | 'clearAllMocks' | 'setProxyTarget' | 'clearProxy' | 'executeProxyRequest' | 'setProxyEnabled' | 'getProxyEnabled';
+
+// Proxy types
+export interface ProxyInstance {
+  tabId: number;
+  url: string;
+  title?: string;
+  isConnected: boolean;
+}
+
+export interface ProxyRequest {
+  requestId: string;
+  operationName: string;
+  query: string;
+  variables?: Record<string, unknown>;
+  sourceTabId: number;
+}
+
+export interface ProxyResponse {
+  requestId: string;
+  data?: unknown;
+  error?: string;
+  duration?: number;
+}
 
 // Apollo query options/policy
 export interface QueryOptions {
@@ -76,6 +106,7 @@ export interface RawWatchedQuery {
   lastResponseDuration?: number; // Duration of the last network request in ms
   lastRequest?: RequestInfo; // HTTP request info for debugging
   lastResponseInfo?: ResponseInfo; // HTTP response info for debugging
+  isProxied?: boolean; // Flag indicating if this response was proxied from another tab
   networkStatus: number;
   pollInterval?: number | null;
   options?: QueryOptions | null; // Apollo query options/policy

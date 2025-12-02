@@ -36,6 +36,36 @@ function setupMessageRelay() {
       console.log('[Leonardo.Ai] User logged out, cleared stored data');
     }
 
+    // Handle proxy fetch requests from injected script - these need to go through background to target tab
+    if (event.data.type === 'PROXY_FETCH_REQUEST') {
+      const payload = event.data.payload;
+
+      // Forward to background script, which will route to the target tab
+      chrome.runtime.sendMessage({
+        source: SOURCE,
+        type: 'PROXY_FETCH_REQUEST',
+        payload: payload,
+      }).then((response) => {
+        // Send the response back to the injected script
+        window.postMessage({
+          source: SOURCE,
+          type: 'PROXY_FETCH_RESPONSE',
+          payload: response,
+        }, '*');
+      }).catch((error) => {
+        // Send error back to injected script
+        window.postMessage({
+          source: SOURCE,
+          type: 'PROXY_FETCH_RESPONSE',
+          payload: {
+            requestId: payload?.requestId,
+            error: error.message || 'Proxy fetch failed',
+          },
+        }, '*');
+      });
+      return;
+    }
+
     // Forward to background script
     chrome.runtime.sendMessage({
       source: SOURCE,
@@ -52,6 +82,12 @@ function setupMessageRelay() {
       // Handle RPC requests - these need a response
       if (message.type === 'RPC_REQUEST') {
         const requestId = message.requestId || Date.now().toString();
+        console.log(`[Leonardo.Ai] Content: RPC request ${message.method} with requestId ${requestId}`);
+
+        // Extra logging for setProxyEnabled to debug
+        if (message.method === 'setProxyEnabled') {
+          console.log(`[Leonardo.Ai] Content: setProxyEnabled request received! params:`, message.params);
+        }
 
         // Set up a one-time listener for the response
         const responseHandler = (event: MessageEvent) => {
@@ -73,6 +109,40 @@ function setupMessageRelay() {
           method: message.method,
           params: message.params,
           requestId: requestId,
+        }, '*');
+
+        // Return true to indicate we'll respond asynchronously
+        return true;
+      }
+
+      // Handle proxy requests - these need to execute GraphQL on this tab
+      if (message.type === 'PROXY_REQUEST') {
+        const payload = message.payload;
+        const requestId = payload?.requestId || Date.now().toString();
+
+        // Set up a one-time listener for the proxy response
+        const proxyResponseHandler = (event: MessageEvent) => {
+          if (event.source !== window) return;
+          if (event.data?.source !== PAGE_SOURCE) return;
+          if (event.data.type !== 'PROXY_RESPONSE') return;
+          if (event.data.payload?.requestId !== requestId) return;
+
+          window.removeEventListener('message', proxyResponseHandler);
+          sendResponse(event.data.payload);
+        };
+
+        window.addEventListener('message', proxyResponseHandler);
+
+        // Forward proxy request to page script to execute
+        window.postMessage({
+          source: SOURCE,
+          type: 'PROXY_REQUEST',
+          payload: {
+            requestId: requestId,
+            operationName: payload?.operationName,
+            query: payload?.query,
+            variables: payload?.variables,
+          },
         }, '*');
 
         // Return true to indicate we'll respond asynchronously

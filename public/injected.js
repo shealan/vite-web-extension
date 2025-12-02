@@ -12,6 +12,25 @@
   // Store mock data overrides for operations (by operation name)
   const mockOverrides = new Map();
 
+  // Unique instance ID for debugging
+  const INSTANCE_ID = Math.random().toString(36).slice(2, 8);
+  console.log("[Leonardo.Ai] Injected script instance:", INSTANCE_ID);
+
+  // Proxy mode state - stored on window to persist across script re-injections
+  // and be shared across multiple instances (e.g., iframes)
+  const PROXY_STATE_KEY = "__LEONARDO_DEVTOOLS_PROXY_STATE__";
+  if (!window[PROXY_STATE_KEY]) {
+    console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- Creating new proxy state on window");
+    window[PROXY_STATE_KEY] = {
+      enabled: false,
+      pendingFetches: new Map(),
+      createdBy: INSTANCE_ID,
+    };
+  } else {
+    console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- Reusing proxy state created by:", window[PROXY_STATE_KEY].createdBy, "enabled:", window[PROXY_STATE_KEY].enabled);
+  }
+  const proxyState = window[PROXY_STATE_KEY];
+
   // Toast notification system for mock indicators
   const toastContainer = {
     element: null,
@@ -163,6 +182,122 @@
       // Auto-hide after 5 seconds
       setTimeout(function () {
         toastContainer.hide(operationName);
+      }, 5000);
+    },
+
+    // Show a proxy toast (orange theme)
+    showProxy: function (operationName) {
+      // Debounce: don't show toast for same operation within 3 seconds
+      const proxyKey = "proxy-" + operationName;
+      const now = Date.now();
+      const lastTime = this.lastShown.get(proxyKey) || 0;
+      if (now - lastTime < 3000) {
+        return;
+      }
+      this.lastShown.set(proxyKey, now);
+
+      this.init();
+
+      // If container couldn't be initialized, skip showing toast
+      if (!this.element) {
+        console.log(
+          "[Leonardo.Ai] Toast: Cannot show proxy toast, container not ready"
+        );
+        return;
+      }
+
+      // If toast already exists for this operation, just update the timestamp
+      if (this.toasts.has(proxyKey)) {
+        const existing = this.toasts.get(proxyKey);
+        existing.timestamp = Date.now();
+        existing.element.style.animation = "none";
+        existing.element.offsetHeight; // Trigger reflow
+        existing.element.style.animation = "apolloLiteToastFadeIn 0.3s ease";
+        return;
+      }
+
+      const toast = document.createElement("div");
+      toast.style.cssText = `
+        background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+        color: white;
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(234, 88, 12, 0.4);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        pointer-events: auto;
+        animation: apolloLiteToastFadeIn 0.3s ease;
+        max-width: 500px;
+        white-space: nowrap;
+      `;
+
+      // Add keyframes if not already added
+      if (!document.getElementById("apollo-lite-toast-styles")) {
+        const style = document.createElement("style");
+        style.id = "apollo-lite-toast-styles";
+        style.textContent = `
+          @keyframes apolloLiteToastFadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes apolloLiteToastFadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(20px); }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // Proxy icon (arrow through circle)
+      const icon = document.createElement("span");
+      icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8l4 4-4 4"/></svg>';
+      icon.style.cssText =
+        "display: flex; align-items: center; flex-shrink: 0;";
+
+      // Text
+      const text = document.createElement("span");
+      text.style.cssText = "flex-shrink: 0;";
+      text.textContent = operationName + " data is being proxied";
+
+      // Close button
+      const closeBtnProxy = document.createElement("button");
+      closeBtnProxy.innerHTML =
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+      closeBtnProxy.style.cssText = `
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 2px;
+        display: flex;
+        align-items: center;
+        opacity: 0.7;
+        flex-shrink: 0;
+        margin-left: 6px;
+      `;
+      closeBtnProxy.onmouseover = function () {
+        closeBtnProxy.style.opacity = "1";
+      };
+      closeBtnProxy.onmouseout = function () {
+        closeBtnProxy.style.opacity = "0.7";
+      };
+      closeBtnProxy.onclick = function () {
+        toastContainer.hide(proxyKey);
+      };
+
+      toast.appendChild(icon);
+      toast.appendChild(text);
+      toast.appendChild(closeBtnProxy);
+
+      this.element.appendChild(toast);
+      this.toasts.set(proxyKey, { element: toast, timestamp: Date.now() });
+
+      // Auto-hide after 5 seconds
+      setTimeout(function () {
+        toastContainer.hide(proxyKey);
       }, 5000);
     },
 
@@ -493,6 +628,8 @@
               lastRequest: lastResponse ? lastResponse.request : null,
               // Include response info (status, headers)
               lastResponseInfo: lastResponse ? lastResponse.response : null,
+              // Flag indicating if this response was proxied from another tab
+              isProxied: lastResponse ? lastResponse.isProxied === true : false,
               networkStatus: networkStatus,
               pollInterval: pollInterval,
               // Include policy options
@@ -622,7 +759,21 @@
   }
 
   // Intercept fetch to capture GraphQL responses and apply mock overrides
-  const originalFetch = window.fetch;
+  // Only wrap fetch once - store original on window to prevent double-wrapping
+  const ORIGINAL_FETCH_KEY = "__LEONARDO_DEVTOOLS_ORIGINAL_FETCH__";
+  if (!window[ORIGINAL_FETCH_KEY]) {
+    window[ORIGINAL_FETCH_KEY] = window.fetch;
+    console.log("[Leonardo.Ai] Storing original fetch on window");
+  }
+  const originalFetch = window[ORIGINAL_FETCH_KEY];
+
+  // Only set up the interceptor if we haven't already
+  const FETCH_WRAPPED_KEY = "__LEONARDO_DEVTOOLS_FETCH_WRAPPED__";
+  if (window[FETCH_WRAPPED_KEY]) {
+    console.log("[Leonardo.Ai] Fetch already wrapped, skipping re-wrap");
+  } else {
+    window[FETCH_WRAPPED_KEY] = true;
+    console.log("[Leonardo.Ai] Wrapping fetch for the first time");
   window.fetch = function (input, init) {
     const url = typeof input === "string" ? input : input.url;
 
@@ -755,6 +906,85 @@
       );
     }
 
+    // Check if proxy mode is enabled - forward request to target tab instead of local execution
+    console.log("[Leonardo.Ai] Fetch intercepted:", operationName, "proxyState.enabled:", proxyState.enabled, "enabledBy:", proxyState.enabledBy, "window check:", window[PROXY_STATE_KEY]?.enabled);
+    if (proxyState.enabled && operationName && queryString) {
+      console.log("[Leonardo.Ai] Proxy intercepting:", operationName);
+
+      // Generate a unique request ID
+      const proxyRequestId = operationName + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
+
+      // Show proxy toast notification
+      try {
+        toastContainer.showProxy(operationName);
+      } catch (e) {
+        console.error("[Leonardo.Ai] Proxy toast error:", e);
+      }
+
+      // Create a promise that will be resolved when we get the proxy response
+      return new Promise(function (resolve, reject) {
+        // Set up timeout (30 seconds)
+        const timeoutId = setTimeout(function () {
+          proxyState.pendingFetches.delete(proxyRequestId);
+          console.error("[Leonardo.Ai] Proxy request timeout for:", operationName);
+          // On timeout, fall back to local execution
+          originalFetch.apply(window, [input, init]).then(resolve).catch(reject);
+        }, 30000);
+
+        // Store the resolver for when we get the response
+        proxyState.pendingFetches.set(proxyRequestId, {
+          resolve: function (proxyResponse) {
+            clearTimeout(timeoutId);
+            proxyState.pendingFetches.delete(proxyRequestId);
+
+            // Check for error in proxy response
+            if (proxyResponse.error && !proxyResponse.data) {
+              console.error("[Leonardo.Ai] Proxy error for:", operationName, proxyResponse.error);
+              // On error, fall back to local execution
+              originalFetch.apply(window, [input, init]).then(resolve).catch(reject);
+              return;
+            }
+
+            // Store the proxied response
+            lastResponses.set(operationName, {
+              data: { data: proxyResponse.data },
+              timestamp: Date.now(),
+              duration: proxyResponse.duration,
+              variables: variables,
+              isProxied: true,
+              request: requestInfo,
+              response: {
+                status: 200,
+                statusText: "OK (Proxied)",
+                headers: { "content-type": "application/json" },
+              },
+            });
+
+            // Return a fake Response with the proxied data
+            resolve(
+              new Response(JSON.stringify({ data: proxyResponse.data }), {
+                status: 200,
+                statusText: "OK",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              })
+            );
+          },
+          reject: reject,
+          operationName: operationName,
+        });
+
+        // Send proxy request to content script
+        postMessage("PROXY_FETCH_REQUEST", {
+          requestId: proxyRequestId,
+          operationName: operationName,
+          query: queryString,
+          variables: variables,
+        });
+      });
+    }
+
     // Capture start time for duration calculation
     const startTime = Date.now();
 
@@ -816,6 +1046,7 @@
       return response;
     });
   };
+  } // End of fetch wrapper conditional
 
   // RPC request handlers
   const rpcHandlers = {
@@ -866,7 +1097,142 @@
       console.log("[Leonardo.Ai] All mocks cleared");
       return { success: true };
     },
+    // Enable proxy mode - all GraphQL requests will be forwarded to target tab
+    setProxyEnabled: function (params) {
+      console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- setProxyEnabled called with params:", params);
+      proxyState.enabled = params && params.enabled === true;
+      proxyState.enabledBy = INSTANCE_ID;
+      console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- Proxy mode:", proxyState.enabled ? "ENABLED" : "disabled");
+      console.log("[Leonardo.Ai] window[PROXY_STATE_KEY].enabled =", window[PROXY_STATE_KEY].enabled);
+      return { success: true, proxyEnabled: proxyState.enabled, instanceId: INSTANCE_ID };
+    },
+    // Get current proxy state
+    getProxyEnabled: function () {
+      return { proxyEnabled: proxyState.enabled };
+    },
   };
+
+  // Execute a proxy request using Apollo Client directly
+  // This ensures we use all the configured headers, auth, and link chain from Apollo
+  function executeProxyRequest(payload) {
+    return new Promise(function (resolve) {
+      const client = getApolloClient();
+      if (!client) {
+        resolve({
+          requestId: payload.requestId,
+          error: "Apollo Client not found on this page",
+        });
+        return;
+      }
+
+      const startTime = Date.now();
+
+      // Parse the query string into a GraphQL document
+      // Apollo Client needs a parsed document, not a string
+      //
+      // Strategy: Look for an existing watched query with the same operation name
+      // and reuse its document. This avoids needing a gql parser entirely.
+      var document = null;
+
+      // First, try to find an existing query with the same operation name
+      // and extract its parsed document
+      try {
+        if (client.queryManager && client.queryManager.queries) {
+          for (var queryInfo of client.queryManager.queries.values()) {
+            if (queryInfo.document) {
+              // Check if this document matches our operation name
+              var docOpName = null;
+              if (queryInfo.document.definitions) {
+                for (var def of queryInfo.document.definitions) {
+                  if (def.kind === "OperationDefinition" && def.name) {
+                    docOpName = def.name.value;
+                    break;
+                  }
+                }
+              }
+              if (docOpName === payload.operationName) {
+                document = queryInfo.document;
+                console.log("[Leonardo.Ai] Proxy: Found existing document for", payload.operationName);
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.log("[Leonardo.Ai] Proxy: Error finding existing document:", e);
+      }
+
+      // If we didn't find an existing document, try to parse the query string
+      if (!document) {
+        // Try to find a gql/parse function from various sources
+        var parse = null;
+
+        // Check for graphql parse function (most reliable)
+        if (window.graphql && typeof window.graphql.parse === "function") {
+          parse = window.graphql.parse;
+        }
+        // Check for gql from graphql-tag
+        else if (typeof window.gql === "function") {
+          parse = window.gql;
+        }
+        // Check in Apollo DevTools hook
+        else if (window.__APOLLO_DEVTOOLS_GLOBAL_HOOK__?.parse) {
+          parse = window.__APOLLO_DEVTOOLS_GLOBAL_HOOK__.parse;
+        }
+
+        if (parse) {
+          try {
+            document = parse(payload.query);
+          } catch (parseError) {
+            resolve({
+              requestId: payload.requestId,
+              error: "Failed to parse query: " + parseError.message,
+            });
+            return;
+          }
+        } else {
+          resolve({
+            requestId: payload.requestId,
+            error: "Could not find query document. The operation may not be active on the target page.",
+          });
+          return;
+        }
+      }
+
+      // Execute the query using Apollo Client
+      // This will use all configured links including auth headers
+      client
+        .query({
+          query: document,
+          variables: payload.variables || {},
+          fetchPolicy: "network-only", // Always fetch fresh data for proxy requests
+          errorPolicy: "all", // Return both data and errors
+        })
+        .then(function (result) {
+          var duration = Date.now() - startTime;
+          resolve({
+            requestId: payload.requestId,
+            data: result.data,
+            error: result.errors
+              ? result.errors
+                  .map(function (e) {
+                    return e.message;
+                  })
+                  .join(", ")
+              : undefined,
+            duration: duration,
+          });
+        })
+        .catch(function (error) {
+          var duration = Date.now() - startTime;
+          resolve({
+            requestId: payload.requestId,
+            error: error.message || "Query execution failed",
+            duration: duration,
+          });
+        });
+    });
+  }
 
   // Listen for RPC requests from content script
   window.addEventListener("message", function (event) {
@@ -900,6 +1266,28 @@
           requestId: requestId,
           error: "Unknown method: " + method,
         });
+      }
+      return;
+    }
+
+    // Handle proxy requests - execute GraphQL using this page's Apollo Client
+    if (type === "PROXY_REQUEST" && event.data.payload) {
+      const payload = event.data.payload;
+      executeProxyRequest(payload).then(function (response) {
+        postMessage("PROXY_RESPONSE", response);
+      });
+      return;
+    }
+
+    // Handle proxy fetch responses - responses coming back from the target tab
+    if (type === "PROXY_FETCH_RESPONSE" && event.data.payload) {
+      const payload = event.data.payload;
+      const pending = proxyState.pendingFetches.get(payload.requestId);
+      if (pending) {
+        console.log("[Leonardo.Ai] Received proxy response for:", pending.operationName);
+        pending.resolve(payload);
+      } else {
+        console.warn("[Leonardo.Ai] Received proxy response for unknown request:", payload.requestId);
       }
       return;
     }

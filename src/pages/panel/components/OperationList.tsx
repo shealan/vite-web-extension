@@ -11,6 +11,8 @@ interface OperationListProps {
   mockDataMap?: Record<string, string>;
   /** Map of operation names to enabled state */
   mockEnabledMap?: Record<string, boolean>;
+  /** Map of operation names to proxied data (non-null = has proxy result) */
+  proxiedDataMap?: Record<string, unknown>;
 }
 
 function Spinner() {
@@ -46,6 +48,18 @@ function MockBadge() {
       title="Mocked"
     >
       M
+    </span>
+  );
+}
+
+// Proxy badge component
+function ProxyBadge() {
+  return (
+    <span
+      className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] font-semibold text-white bg-orange-500 rounded"
+      title="Proxied"
+    >
+      P
     </span>
   );
 }
@@ -89,12 +103,19 @@ export function OperationList({
   operationType,
   mockDataMap = {},
   mockEnabledMap = {},
+  proxiedDataMap = {},
 }: OperationListProps) {
   // Helper to check if an operation has an active mock
   const hasMock = (operationName: string) => {
     const mockData = mockDataMap[operationName];
     const isEnabled = mockEnabledMap[operationName] !== false;
     return mockData && mockData.trim() !== "" && isEnabled;
+  };
+
+  // Helper to check if an operation has proxied data
+  const hasProxy = (operationName: string) => {
+    const proxiedData = proxiedDataMap[operationName];
+    return proxiedData !== undefined && proxiedData !== null;
   };
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -142,6 +163,7 @@ export function OperationList({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     {hasMock(operation.operationName) && <MockBadge />}
+                    {hasProxy(operation.operationName) && <ProxyBadge />}
                     <span className="text-sm text-gray-200 truncate font-mono">
                       {operation.operationName}
                     </span>
