@@ -1,43 +1,54 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+
 @import "tailwindcss";
 @import "./theme.css";
 
-@theme {
-    --animate-spin-slow: spin 20s linear infinite;
+@theme inline {
+  --animate-spin-slow: spin 20s linear infinite;
 
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
     }
+  }
 
-    /* Leonardo.Ai custom colors */
-    /* Backgrounds */
-    --color-leo-base: var(--leo-bg-base);
-    --color-leo-elevated: var(--leo-bg-elevated);
-    --color-leo-hover: var(--leo-bg-hover);
-    --color-leo-active: var(--leo-bg-active);
+  /* Leonardo.Ai custom colors */
+  /* Backgrounds */
+  --color-leo-base: var(--leo-bg-base);
+  --color-leo-elevated: var(--leo-bg-elevated);
+  --color-leo-hover: var(--leo-bg-hover);
+  --color-leo-active: var(--leo-bg-active);
 
-    /* Borders */
-    --color-leo-border: var(--leo-border);
-    --color-leo-border-strong: var(--leo-border-strong);
-    --color-leo-border-hover: var(--leo-border-hover);
+  /* Borders */
+  --color-leo-border: var(--leo-border);
+  --color-leo-border-strong: var(--leo-border-strong);
+  --color-leo-border-hover: var(--leo-border-hover);
 
-    /* Text */
-    --color-leo-text: var(--leo-text-primary);
-    --color-leo-text-secondary: var(--leo-text-secondary);
-    --color-leo-text-muted: var(--leo-text-muted);
+  /* Text */
+  --color-leo-text: var(--leo-text-primary);
+  --color-leo-text-secondary: var(--leo-text-secondary);
+  --color-leo-text-muted: var(--leo-text-muted);
 
-    /* Brand purple scale */
-    --color-leo-purple-50: var(--leo-purple-50);
-    --color-leo-purple-100: var(--leo-purple-100);
-    --color-leo-purple-200: var(--leo-purple-200);
-    --color-leo-purple-300: var(--leo-purple-300);
-    --color-leo-purple-400: var(--leo-purple-400);
-    --color-leo-purple-500: var(--leo-purple-500);
-    --color-leo-purple-600: var(--leo-purple-600);
-    --color-leo-purple-700: var(--leo-purple-700);
+  /* Brand purple scale */
+  --color-leo-purple-50: var(--leo-purple-50);
+  --color-leo-purple-100: var(--leo-purple-100);
+  --color-leo-purple-200: var(--leo-purple-200);
+  --color-leo-purple-300: var(--leo-purple-300);
+  --color-leo-purple-400: var(--leo-purple-400);
+  --color-leo-purple-500: var(--leo-purple-500);
+  --color-leo-purple-600: var(--leo-purple-600);
+  --color-leo-purple-700: var(--leo-purple-700);
 
-    /* Indigo accents */
-    --color-leo-indigo-400: var(--leo-indigo-400);
-    --color-leo-indigo-500: var(--leo-indigo-500);
+  /* Indigo accents */
+  --color-leo-indigo-400: var(--leo-indigo-400);
+  --color-leo-indigo-500: var(--leo-indigo-500);
+
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+/* Apply default fonts */
+html,
+body {
+  font-family: var(--font-sans);
 }

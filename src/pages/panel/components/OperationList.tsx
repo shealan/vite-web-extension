@@ -110,7 +110,7 @@ export function OperationList({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     {hasMock(operation.operationName) && <MockBadge />}
-                    <span className="text-sm font-medium text-gray-200 truncate font-mono">
+                    <span className="text-sm text-gray-200 truncate font-mono">
                       {operation.operationName}
                     </span>
                   </div>
@@ -126,14 +126,12 @@ export function OperationList({
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
                   <span>{formatTime(operation.timestamp)}</span>
                   {operation.status === "loading" ? (
                     <span className="text-purple-400">loading...</span>
                   ) : operation.duration ? (
-                    <span className="text-gray-400">
-                      {operation.duration}ms
-                    </span>
+                    <span>{formatDuration(operation.duration)}</span>
                   ) : null}
                 </div>
               </button>
@@ -158,4 +156,9 @@ function formatTime(timestamp: number): string {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
 }

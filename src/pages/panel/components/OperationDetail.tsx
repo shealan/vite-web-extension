@@ -529,7 +529,7 @@ function OperationDetailInner({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-3 py-3 border-b border-leo-border">
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-2">
           <span
             className={cn(
               "px-2 py-0.5 text-xs rounded font-medium",
@@ -542,14 +542,18 @@ function OperationDetailInner({
           >
             {operation.type.toUpperCase()}
           </span>
-          <h2 className="text-sm font-semibold text-white">
-            {operation.operationName}
-          </h2>
-        </div>
-        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-          <span>{new Date(operation.timestamp).toLocaleTimeString()}</span>
-          {operation.duration && <span>{operation.duration}ms</span>}
-          {operation.error && <span className="text-red-400">Has errors</span>}
+          <div>
+            <h2 className="text-sm font-mono text-white">
+              {operation.operationName}
+            </h2>
+            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+              <span>{new Date(operation.timestamp).toLocaleTimeString()}</span>
+              {operation.duration && <span>{formatDuration(operation.duration)}</span>}
+              {operation.error && (
+                <span className="text-red-400">Has errors</span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1289,6 +1293,11 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
 }
 
 // Memoized with deep equality check to prevent re-renders from parent polling updates

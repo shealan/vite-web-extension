@@ -140,6 +140,7 @@ function convertToOperations(
       response: q.lastResponseInfo,
       options: q.options,
       timestamp: q.lastResponseTimestamp ?? Date.now(),
+      duration: q.lastResponseDuration,
       status: q.networkStatus === 1 ? "loading" : "success",
     });
   }
@@ -160,6 +161,7 @@ function convertToOperations(
         ? String((m.error as { message?: string })?.message || m.error)
         : undefined,
       timestamp: m.lastResponseTimestamp ?? Date.now(),
+      duration: m.lastResponseDuration,
       status: m.loading ? "loading" : m.error ? "error" : "success",
     });
   }

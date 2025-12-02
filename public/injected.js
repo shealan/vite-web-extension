@@ -488,6 +488,7 @@
               lastResponseTimestamp: lastResponse
                 ? lastResponse.timestamp
                 : null,
+              lastResponseDuration: lastResponse ? lastResponse.duration : null,
               // Include request info for debugging
               lastRequest: lastResponse ? lastResponse.request : null,
               // Include response info (status, headers)
@@ -556,6 +557,7 @@
             error: mutation.error ? serializeError(mutation.error) : null,
             lastResponse: lastResponse ? lastResponse.data : null,
             lastResponseTimestamp: lastResponse ? lastResponse.timestamp : null,
+            lastResponseDuration: lastResponse ? lastResponse.duration : null,
             // Include request info for debugging
             lastRequest: lastResponse ? lastResponse.request : null,
             // Include response info (status, headers)
@@ -753,7 +755,13 @@
       );
     }
 
+    // Capture start time for duration calculation
+    const startTime = Date.now();
+
     return originalFetch.apply(this, arguments).then(function (response) {
+      // Calculate request duration
+      const duration = Date.now() - startTime;
+
       // Clone the response so we can read the body
       const clonedResponse = response.clone();
 
@@ -776,6 +784,7 @@
             lastResponses.set(operationName, {
               data: data,
               timestamp: Date.now(),
+              duration: duration,
               variables: variables,
               request: requestInfo,
               response: responseInfo,

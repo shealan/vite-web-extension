@@ -72,6 +72,7 @@ export interface RawWatchedQuery {
   cachedData?: unknown;
   lastResponse?: unknown; // Actual network response captured from fetch
   lastResponseTimestamp?: number;
+  lastResponseDuration?: number; // Duration of the last network request in ms
   lastRequest?: RequestInfo; // HTTP request info for debugging
   lastResponseInfo?: ResponseInfo; // HTTP response info for debugging
   networkStatus: number;
@@ -89,6 +90,7 @@ export interface RawMutation {
   error?: unknown;
   lastResponse?: unknown; // Actual network response captured from fetch
   lastResponseTimestamp?: number;
+  lastResponseDuration?: number; // Duration of the last network request in ms
   lastRequest?: RequestInfo; // HTTP request info for debugging
   lastResponseInfo?: ResponseInfo; // HTTP response info for debugging
 }
