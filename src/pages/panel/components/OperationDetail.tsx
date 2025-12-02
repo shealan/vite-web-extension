@@ -532,7 +532,7 @@ function OperationDetailInner({
         <div className="flex items-start gap-2">
           <span
             className={cn(
-              "px-2 py-0.5 text-xs rounded font-medium",
+              "px-2 py-0.5 text-xs rounded font-medium mt-0.5",
               operation.type === "query" && "bg-blue-500/20 text-blue-400",
               operation.type === "mutation" &&
                 "bg-orange-500/20 text-orange-400",
@@ -548,7 +548,9 @@ function OperationDetailInner({
             </h2>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
               <span>{new Date(operation.timestamp).toLocaleTimeString()}</span>
-              {operation.duration && <span>{formatDuration(operation.duration)}</span>}
+              {operation.duration && (
+                <span>{formatDuration(operation.duration)}</span>
+              )}
               {operation.error && (
                 <span className="text-red-400">Has errors</span>
               )}
