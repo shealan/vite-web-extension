@@ -838,7 +838,8 @@ function OperationDetailInner({
                 // Determine if mock is active (has data and is enabled)
                 const isMockActive = hasMockData && mockEnabled;
                 // Determine if proxy is active (connected and enabled for this operation)
-                const isProxyActive = proxyTargetTabId !== null && isProxyEnabled;
+                const isProxyActive =
+                  proxyTargetTabId !== null && isProxyEnabled;
 
                 // Disable mock tab when proxy is active
                 const isMockDisabled = tab.id === "mock" && isProxyActive;
@@ -1438,10 +1439,10 @@ function OperationDetailInner({
                             </svg>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate text-gray-500">
-                                No proxy target
+                                No proxy target available
                               </p>
                               <p className="text-xs mt-0.5 truncate text-gray-500">
-                                Open DevTools on another tab
+                                Proxy {operation.operationName} requests
                               </p>
                             </div>
                           </div>
@@ -1544,10 +1545,11 @@ function OperationDetailInner({
                               </svg>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate text-gray-500">
-                                  {instance.title || instance.url}
+                                  {stripTrailingSlash(instance.url)}
                                 </p>
                                 <p className="text-xs mt-0.5 truncate text-gray-500">
-                                  {instance.url}
+                                  Proxy {operation.operationName} requests via
+                                  tab {instance.tabId}
                                 </p>
                               </div>
                             </div>
@@ -1703,7 +1705,9 @@ function OperationDetailInner({
                           <svg
                             className={cn(
                               "w-5 h-5 shrink-0",
-                              isProxyEnabled ? "text-orange-400" : "text-gray-500"
+                              isProxyEnabled
+                                ? "text-orange-400"
+                                : "text-gray-500"
                             )}
                             fill="none"
                             stroke="currentColor"
@@ -1725,9 +1729,11 @@ function OperationDetailInner({
                                   : "text-gray-500"
                               )}
                             >
-                              {proxyInstances.find(
-                                (i) => i.tabId === proxyTargetTabId
-                              )?.title || `Tab ${proxyTargetTabId}`}
+                              {stripTrailingSlash(
+                                proxyInstances.find(
+                                  (i) => i.tabId === proxyTargetTabId
+                                )?.url || "Connected"
+                              )}
                             </p>
                             <p
                               className={cn(
@@ -1737,9 +1743,8 @@ function OperationDetailInner({
                                   : "text-gray-500"
                               )}
                             >
-                              {proxyInstances.find(
-                                (i) => i.tabId === proxyTargetTabId
-                              )?.url || "Connected"}
+                              Proxy {operation.operationName} data from tab{" "}
+                              {proxyTargetTabId}
                             </p>
                           </div>
                         </div>
@@ -1777,6 +1782,10 @@ function formatFileSize(bytes: number): string {
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function stripTrailingSlash(url: string): string {
+  return url.endsWith("/") ? url.slice(0, -1) : url;
 }
 
 // Memoized with deep equality check to prevent re-renders from parent polling updates
