@@ -207,7 +207,6 @@ async function clearPersistedProxyOperations(): Promise<void> {
     if (persisted) {
       persisted.proxyOperations = [];
       await chrome.storage.local.set({ [STORAGE_KEY]: persisted });
-      console.log("[Leonardo.Ai] Cleared persisted proxy operations");
     }
   } catch (e) {
     console.error("[Leonardo.Ai] Failed to clear persisted proxy operations:", e);
@@ -318,7 +317,6 @@ export default function Panel() {
         setMockEnabledMap(persisted.mockEnabledMap || {});
         setProxyOperations(new Set(persisted.proxyOperations || []));
         setSettings(persisted.settings || defaultSettings);
-        console.log("[Leonardo.Ai] Loaded persisted state:", persisted);
       }
       setIsInitialized(true);
     });
@@ -536,7 +534,6 @@ export default function Panel() {
 
     // Only send RPC if state actually changed
     if (shouldBeEnabled && !currentlySent) {
-      console.log("[Leonardo.Ai] Enabling proxy mode - Apollo connected and proxy target configured");
       proxyEnabledSentRef.current = true;
 
       // Retry logic: if the RPC fails, retry a few times with delays
@@ -545,9 +542,7 @@ export default function Panel() {
         if (!rpcClientRef.current) return;
 
         rpcClientRef.current.request("setProxyEnabled", { enabled: true })
-          .then((result) => console.log("[Leonardo.Ai] Proxy mode enabled in injected script (attempt", attempt, "), result:", result))
-          .catch((err) => {
-            console.error("[Leonardo.Ai] Failed to enable proxy mode (attempt", attempt, "):", err);
+          .catch(() => {
             if (attempt < 3) {
               // Retry after a short delay
               setTimeout(() => enableWithRetry(attempt + 1), 500);
@@ -560,13 +555,10 @@ export default function Panel() {
       enableWithRetry(1);
     } else if (!shouldBeEnabled && currentlySent) {
       // Only send disable if we previously sent enable
-      console.log("[Leonardo.Ai] Disabling proxy mode - proxy target removed");
       proxyEnabledSentRef.current = false;
       rpcClientRef.current.request("setProxyEnabled", { enabled: false })
-        .then(() => console.log("[Leonardo.Ai] Proxy mode disabled in injected script"))
-        .catch((err) => {
+        .catch(() => {
           // Ignore errors when disabling - content script might not be ready
-          console.log("[Leonardo.Ai] Failed to disable proxy mode (expected if not connected):", err.message);
         });
     }
   }, [proxyTargetTabId, state.isConnected]);
@@ -717,7 +709,6 @@ export default function Panel() {
 
     // Listen for non-RPC messages
     port.onMessage.addListener((message) => {
-      console.log("[Leonardo.Ai] Panel received message:", message.type);
       switch (message.type) {
         case "APOLLO_CLIENT_DETECTED":
           setState((prev) => ({ ...prev, isConnected: true }));
@@ -841,7 +832,6 @@ export default function Panel() {
       // Clean up proxy connection before disconnecting
       if (proxyTargetTabIdRef.current) {
         port.postMessage({ type: "PROXY_UNREGISTER" });
-        console.log("[Leonardo.Ai] Sent PROXY_UNREGISTER on panel cleanup");
       }
 
       // Disable proxy mode in injected script
@@ -975,13 +965,8 @@ export default function Panel() {
 
   // Proxy handlers
   const handleProxyRegister = useCallback((targetTabId: number) => {
-    console.log("[Leonardo.Ai] handleProxyRegister called with targetTabId:", targetTabId);
-    if (!portRef.current) {
-      console.error("[Leonardo.Ai] portRef.current is null in handleProxyRegister!");
-      return;
-    }
+    if (!portRef.current) return;
 
-    console.log("[Leonardo.Ai] Sending PROXY_REGISTER message...");
     portRef.current.postMessage({
       type: "PROXY_REGISTER",
       payload: { targetTabId },

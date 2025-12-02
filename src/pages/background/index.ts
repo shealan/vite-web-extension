@@ -38,10 +38,8 @@ function getProxyInstances(excludeTabId: number): ProxyInstance[] {
 
 // Broadcast proxy instances to all connected panels
 function broadcastProxyInstances() {
-  console.log(`[Leonardo.Ai] Broadcasting proxy instances to ${devtoolsConnections.size} panels`);
   for (const [tabId, conn] of devtoolsConnections) {
     const instances = getProxyInstances(tabId);
-    console.log(`[Leonardo.Ai] Sending ${instances.length} instances to tab ${tabId}:`, instances);
     conn.port.postMessage({
       type: "PROXY_INSTANCES_UPDATE",
       payload: instances,
@@ -68,12 +66,9 @@ chrome.runtime.onConnect.addListener((port) => {
           title: tab.title,
         });
 
-        console.log(`[Leonardo.Ai] Panel registered for tab ${tabId}, total connections: ${devtoolsConnections.size}`);
-
         // Broadcast updated instance list to all panels
         broadcastProxyInstances();
-      }).catch((error) => {
-        console.log(`[Leonardo.Ai] Failed to get tab info for ${tabId}:`, error);
+      }).catch(() => {
         devtoolsConnections.set(tabId!, { port, tabId: tabId! });
 
         // Still broadcast even if we couldn't get tab info
@@ -90,19 +85,11 @@ chrome.runtime.onConnect.addListener((port) => {
           port.postMessage({ type: "CACHE_UPDATE", payload: data.cache });
         }
       }
-
-      console.log(`[Leonardo.Ai] DevTools connected for tab ${tabId}`);
     }
 
     // Handle RPC requests from panel
     if (message.type === "RPC_REQUEST" && tabId !== null) {
       const requestId = message.requestId || Date.now().toString();
-      console.log(`[Leonardo.Ai] Background: RPC request ${message.method} for tab ${tabId}`);
-
-      // Extra logging for setProxyEnabled to debug
-      if (message.method === "setProxyEnabled") {
-        console.log(`[Leonardo.Ai] Background: setProxyEnabled request received! params:`, message.params, `sending to tab ${tabId}`);
-      }
 
       // Forward RPC request to content script and wait for response
       chrome.tabs
@@ -149,7 +136,6 @@ chrome.runtime.onConnect.addListener((port) => {
       const targetTabId = message.payload?.targetTabId as number | undefined;
       if (targetTabId && devtoolsConnections.has(targetTabId)) {
         proxyTargets.set(tabId, targetTabId);
-        console.log(`[Leonardo.Ai] Proxy registered: ${tabId} -> ${targetTabId}`);
         port.postMessage({
           type: "PROXY_REGISTER",
           payload: { success: true, targetTabId },
@@ -165,7 +151,6 @@ chrome.runtime.onConnect.addListener((port) => {
     // Handle proxy unregistration
     if (message.type === "PROXY_UNREGISTER" && tabId !== null) {
       proxyTargets.delete(tabId);
-      console.log(`[Leonardo.Ai] Proxy unregistered for tab ${tabId}`);
     }
 
     // Handle proxy request - forward operation to target tab
@@ -244,8 +229,6 @@ chrome.runtime.onConnect.addListener((port) => {
 
       // Broadcast updated instance list
       broadcastProxyInstances();
-
-      console.log(`[Leonardo.Ai] DevTools disconnected for tab ${tabId}`);
     }
   });
 });
@@ -282,8 +265,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
-    console.log(`[Leonardo.Ai] Proxy fetch: ${payload?.operationName} from tab ${tabId} to tab ${targetTabId}`);
-
     // Forward the request to the target tab's content script to execute
     chrome.tabs
       .sendMessage(targetTabId, {
@@ -297,11 +278,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         },
       })
       .then((response) => {
-        console.log(`[Leonardo.Ai] Proxy response received for: ${payload?.operationName}`);
         sendResponse(response);
       })
       .catch((error) => {
-        console.error(`[Leonardo.Ai] Proxy fetch error:`, error);
         sendResponse({
           requestId: payload?.requestId,
           error: error.message || "Proxy request failed",
@@ -385,7 +364,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       // Always notify panel that the tab navigated/refreshed
       // This allows the panel to reset proxyEnabledSentRef and re-enable proxy mode
       connection.port.postMessage({ type: "TAB_NAVIGATED" });
-      console.log(`[Leonardo.Ai] Tab ${tabId} navigated/refreshed, notified panel`);
 
       // Broadcast updated instances (URL may have changed)
       broadcastProxyInstances();
@@ -402,5 +380,3 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabUrls.delete(tabId);
 });
-
-console.log("[Leonardo.Ai] Background service worker loaded");

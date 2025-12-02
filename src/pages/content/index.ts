@@ -82,12 +82,6 @@ function setupMessageRelay() {
       // Handle RPC requests - these need a response
       if (message.type === 'RPC_REQUEST') {
         const requestId = message.requestId || Date.now().toString();
-        console.log(`[Leonardo.Ai] Content: RPC request ${message.method} with requestId ${requestId}`);
-
-        // Extra logging for setProxyEnabled to debug
-        if (message.method === 'setProxyEnabled') {
-          console.log(`[Leonardo.Ai] Content: setProxyEnabled request received! params:`, message.params);
-        }
 
         // Set up a one-time listener for the response
         const responseHandler = (event: MessageEvent) => {
@@ -162,5 +156,3 @@ function setupMessageRelay() {
 // Initialize
 injectScript();
 setupMessageRelay();
-
-console.log('[Leonardo.Ai] Content script loaded');

@@ -1743,7 +1743,7 @@ function OperationDetailInner({
                                   : "text-gray-500"
                               )}
                             >
-                              Proxy {operation.operationName} data from tab{" "}
+                              Proxy {operation.operationName} data via tab{" "}
                               {proxyTargetTabId}
                             </p>
                           </div>

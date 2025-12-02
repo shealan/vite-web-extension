@@ -14,22 +14,18 @@
 
   // Unique instance ID for debugging
   const INSTANCE_ID = Math.random().toString(36).slice(2, 8);
-  console.log("[Leonardo.Ai] Injected script instance:", INSTANCE_ID);
 
   // Proxy mode state - stored on window to persist across script re-injections
   // and be shared across multiple instances (e.g., iframes)
   // Note: proxyEnabled is a SET of operation names that should be proxied (like mocks)
   const PROXY_STATE_KEY = "__LEONARDO_DEVTOOLS_PROXY_STATE__";
   if (!window[PROXY_STATE_KEY]) {
-    console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- Creating new proxy state on window");
     window[PROXY_STATE_KEY] = {
       enabled: false, // Global toggle - when true, operations in proxyOperations will be proxied
       proxyOperations: new Set(), // Set of operation names to proxy
       pendingFetches: new Map(),
       createdBy: INSTANCE_ID,
     };
-  } else {
-    console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- Reusing proxy state created by:", window[PROXY_STATE_KEY].createdBy, "enabled:", window[PROXY_STATE_KEY].enabled);
   }
   const proxyState = window[PROXY_STATE_KEY];
 
@@ -66,7 +62,6 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       `;
       document.body.appendChild(this.element);
-      console.log("[Leonardo.Ai] Toast container initialized");
       return true;
     },
 
@@ -765,17 +760,15 @@
   const ORIGINAL_FETCH_KEY = "__LEONARDO_DEVTOOLS_ORIGINAL_FETCH__";
   if (!window[ORIGINAL_FETCH_KEY]) {
     window[ORIGINAL_FETCH_KEY] = window.fetch;
-    console.log("[Leonardo.Ai] Storing original fetch on window");
   }
   const originalFetch = window[ORIGINAL_FETCH_KEY];
 
   // Only set up the interceptor if we haven't already
   const FETCH_WRAPPED_KEY = "__LEONARDO_DEVTOOLS_FETCH_WRAPPED__";
   if (window[FETCH_WRAPPED_KEY]) {
-    console.log("[Leonardo.Ai] Fetch already wrapped, skipping re-wrap");
+    // Already wrapped, skip
   } else {
     window[FETCH_WRAPPED_KEY] = true;
-    console.log("[Leonardo.Ai] Wrapping fetch for the first time");
   window.fetch = function (input, init) {
     const url = typeof input === "string" ? input : input.url;
 
@@ -789,7 +782,6 @@
 
     // Detect logout - next-auth signout endpoint
     if (url.includes('/api/auth/signout') || url.includes('/api/auth/callback/signout')) {
-      console.log('[Leonardo.Ai] Logout detected, clearing user data');
       postMessage('USER_LOGGED_OUT', { timestamp: Date.now() });
       return originalFetch.apply(this, arguments);
     }
@@ -859,7 +851,6 @@
             mockConfig.__mockScript
           );
           mockData = mockFn(variables, operationName, mockRequest);
-          console.log("[Leonardo.Ai] Executed JS mock for:", operationName);
         } catch (e) {
           console.error(
             "[Leonardo.Ai] JS mock execution error for:",
@@ -872,7 +863,6 @@
       } else {
         // Regular JSON mock
         mockData = mockConfig;
-        console.log("[Leonardo.Ai] Returning JSON mock for:", operationName);
       }
 
       // Show toast notification
@@ -911,9 +901,7 @@
     // Check if this specific operation should be proxied
     // proxyState.enabled must be true AND the operation must be in proxyOperations set
     const shouldProxy = proxyState.enabled && operationName && queryString && proxyState.proxyOperations.has(operationName);
-    console.log("[Leonardo.Ai] Fetch intercepted:", operationName, "proxyState.enabled:", proxyState.enabled, "inProxySet:", proxyState.proxyOperations?.has(operationName), "shouldProxy:", shouldProxy);
     if (shouldProxy) {
-      console.log("[Leonardo.Ai] Proxy intercepting:", operationName);
 
       // Generate a unique request ID
       const proxyRequestId = operationName + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
@@ -1078,10 +1066,8 @@
       }
       if (params.mockData) {
         mockOverrides.set(params.operationName, params.mockData);
-        console.log("[Leonardo.Ai] Mock set for:", params.operationName);
       } else {
         mockOverrides.delete(params.operationName);
-        console.log("[Leonardo.Ai] Mock cleared for:", params.operationName);
       }
       return {
         success: true,
@@ -1098,20 +1084,16 @@
     },
     clearAllMocks: function () {
       mockOverrides.clear();
-      console.log("[Leonardo.Ai] All mocks cleared");
       return { success: true };
     },
     // Enable/disable proxy mode globally
     setProxyEnabled: function (params) {
-      console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- setProxyEnabled called with params:", params);
       proxyState.enabled = params && params.enabled === true;
       proxyState.enabledBy = INSTANCE_ID;
       // If disabling, also clear the operations set
       if (!proxyState.enabled) {
         proxyState.proxyOperations.clear();
       }
-      console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- Proxy mode:", proxyState.enabled ? "ENABLED" : "disabled");
-      console.log("[Leonardo.Ai] window[PROXY_STATE_KEY].enabled =", window[PROXY_STATE_KEY].enabled);
       return { success: true, proxyEnabled: proxyState.enabled, instanceId: INSTANCE_ID };
     },
     // Get current proxy state
@@ -1124,7 +1106,6 @@
         return { success: false, error: "operationName is required" };
       }
       proxyState.proxyOperations.add(params.operationName);
-      console.log("[Leonardo.Ai] Added proxy operation:", params.operationName, "total:", proxyState.proxyOperations.size);
       return { success: true, operationName: params.operationName, proxyOperations: Array.from(proxyState.proxyOperations) };
     },
     // Remove an operation from the proxy set
@@ -1133,13 +1114,11 @@
         return { success: false, error: "operationName is required" };
       }
       proxyState.proxyOperations.delete(params.operationName);
-      console.log("[Leonardo.Ai] Removed proxy operation:", params.operationName, "total:", proxyState.proxyOperations.size);
       return { success: true, operationName: params.operationName, proxyOperations: Array.from(proxyState.proxyOperations) };
     },
     // Clear all proxy operations
     clearProxyOperations: function () {
       proxyState.proxyOperations.clear();
-      console.log("[Leonardo.Ai] Cleared all proxy operations");
       return { success: true };
     },
   };
@@ -1184,14 +1163,13 @@
               }
               if (docOpName === payload.operationName) {
                 document = queryInfo.document;
-                console.log("[Leonardo.Ai] Proxy: Found existing document for", payload.operationName);
                 break;
               }
             }
           }
         }
       } catch (e) {
-        console.log("[Leonardo.Ai] Proxy: Error finding existing document:", e);
+        // Silently ignore errors finding existing document
       }
 
       // If we didn't find an existing document, try to parse the query string
@@ -1316,10 +1294,7 @@
       const payload = event.data.payload;
       const pending = proxyState.pendingFetches.get(payload.requestId);
       if (pending) {
-        console.log("[Leonardo.Ai] Received proxy response for:", pending.operationName);
         pending.resolve(payload);
-      } else {
-        console.warn("[Leonardo.Ai] Received proxy response for unknown request:", payload.requestId);
       }
       return;
     }
@@ -1345,7 +1320,6 @@
   function checkForApolloClient() {
     const client = getApolloClient();
     if (client) {
-      console.log("[Leonardo.Ai] Apollo Client found!", client);
       postMessage("APOLLO_CLIENT_DETECTED", {
         version: client.version || "unknown",
         hasCache: !!client.cache,
@@ -1364,7 +1338,6 @@
         return _apolloClient;
       },
       set: function (client) {
-        console.log("[Leonardo.Ai] __APOLLO_CLIENT__ was set!", client);
         _apolloClient = client;
         if (client) {
           postMessage("APOLLO_CLIENT_DETECTED", {
@@ -1376,7 +1349,7 @@
       configurable: true,
     });
   } catch (e) {
-    console.log("[Leonardo.Ai] Could not set up property watcher:", e);
+    // Property watcher not supported
   }
 
   // Check for Apollo Client on load and periodically
@@ -1389,14 +1362,9 @@
       if (checkForApolloClient() || retries >= maxRetries) {
         clearInterval(interval);
         if (retries >= maxRetries && !getApolloClient()) {
-          console.log("[Leonardo.Ai] Apollo Client not found after retries");
           postMessage("APOLLO_CLIENT_NOT_FOUND", {});
         }
       }
     }, 1000);
   }
-
-  console.log(
-    "[Leonardo.Ai] Injected script loaded - RPC handlers ready, fetch intercepted"
-  );
 })();
