@@ -70,9 +70,11 @@ interface OperationDetailProps {
   proxyTargetTabId?: number | null;
   proxyError?: string | null;
   proxiedData?: unknown;
+  isProxyEnabled?: boolean; // Whether this operation is in the proxy set
   onProxyRegister?: (targetTabId: number) => void;
   onProxyUnregister?: () => void;
   onProxyRequest?: (operation: GraphQLOperation) => void;
+  onProxyOperationToggle?: (operationName: string, enabled: boolean) => void;
 }
 
 type LeftTab = "request" | "query" | "variables" | "policy";
@@ -283,9 +285,11 @@ function arePropsEqual(
     // Proxy props
     prevProps.proxyTargetTabId !== nextProps.proxyTargetTabId ||
     prevProps.proxyError !== nextProps.proxyError ||
+    prevProps.isProxyEnabled !== nextProps.isProxyEnabled ||
     prevProps.onProxyRegister !== nextProps.onProxyRegister ||
     prevProps.onProxyUnregister !== nextProps.onProxyUnregister ||
-    prevProps.onProxyRequest !== nextProps.onProxyRequest
+    prevProps.onProxyRequest !== nextProps.onProxyRequest ||
+    prevProps.onProxyOperationToggle !== nextProps.onProxyOperationToggle
   ) {
     return false;
   }
@@ -341,9 +345,11 @@ function OperationDetailInner({
   proxyTargetTabId = null,
   proxyError = null,
   proxiedData,
+  isProxyEnabled = false,
   onProxyRegister,
   onProxyUnregister,
   onProxyRequest,
+  onProxyOperationToggle,
 }: OperationDetailProps) {
   // When autoExpandJson is true, set collapsed to false to expand all nodes
   // collapsed=1 keeps root expanded but collapses nested objects/arrays
@@ -1429,6 +1435,38 @@ function OperationDetailInner({
                         </div>
                       </div>
 
+                      {/* Auto-proxy toggle for this operation */}
+                      <div className="p-3 bg-leo-elevated border border-leo-border-strong rounded">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-sm text-gray-300">
+                              Auto-proxy this operation
+                            </span>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Automatically intercept and proxy requests for {operation.operationName}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => onProxyOperationToggle?.(operation.operationName, !isProxyEnabled)}
+                            className={cn(
+                              "relative w-10 h-5 rounded-full transition-colors",
+                              isProxyEnabled
+                                ? "bg-orange-500"
+                                : "bg-leo-border-strong"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform",
+                                isProxyEnabled
+                                  ? "translate-x-5"
+                                  : "translate-x-0"
+                              )}
+                            />
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Execute proxy request button */}
                       <button
                         onClick={() => onProxyRequest?.(operation)}
@@ -1453,7 +1491,7 @@ function OperationDetailInner({
                             d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                           />
                         </svg>
-                        Execute via Proxy
+                        Execute via Proxy (manual)
                       </button>
 
                       {/* Proxied data result */}

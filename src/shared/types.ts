@@ -59,7 +59,7 @@ export interface ExtensionMessage {
 }
 
 // RPC types for internal use
-export type RpcMethod = 'getQueries' | 'getMutations' | 'getCache' | 'getClientInfo' | 'setMockData' | 'getMockData' | 'clearAllMocks' | 'setProxyTarget' | 'clearProxy' | 'executeProxyRequest' | 'setProxyEnabled' | 'getProxyEnabled';
+export type RpcMethod = 'getQueries' | 'getMutations' | 'getCache' | 'getClientInfo' | 'setMockData' | 'getMockData' | 'clearAllMocks' | 'setProxyTarget' | 'clearProxy' | 'executeProxyRequest' | 'setProxyEnabled' | 'getProxyEnabled' | 'addProxyOperation' | 'removeProxyOperation' | 'clearProxyOperations';
 
 // Proxy types
 export interface ProxyInstance {

@@ -18,11 +18,13 @@
 
   // Proxy mode state - stored on window to persist across script re-injections
   // and be shared across multiple instances (e.g., iframes)
+  // Note: proxyEnabled is a SET of operation names that should be proxied (like mocks)
   const PROXY_STATE_KEY = "__LEONARDO_DEVTOOLS_PROXY_STATE__";
   if (!window[PROXY_STATE_KEY]) {
     console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- Creating new proxy state on window");
     window[PROXY_STATE_KEY] = {
-      enabled: false,
+      enabled: false, // Global toggle - when true, operations in proxyOperations will be proxied
+      proxyOperations: new Set(), // Set of operation names to proxy
       pendingFetches: new Map(),
       createdBy: INSTANCE_ID,
     };
@@ -906,9 +908,11 @@
       );
     }
 
-    // Check if proxy mode is enabled - forward request to target tab instead of local execution
-    console.log("[Leonardo.Ai] Fetch intercepted:", operationName, "proxyState.enabled:", proxyState.enabled, "enabledBy:", proxyState.enabledBy, "window check:", window[PROXY_STATE_KEY]?.enabled);
-    if (proxyState.enabled && operationName && queryString) {
+    // Check if this specific operation should be proxied
+    // proxyState.enabled must be true AND the operation must be in proxyOperations set
+    const shouldProxy = proxyState.enabled && operationName && queryString && proxyState.proxyOperations.has(operationName);
+    console.log("[Leonardo.Ai] Fetch intercepted:", operationName, "proxyState.enabled:", proxyState.enabled, "inProxySet:", proxyState.proxyOperations?.has(operationName), "shouldProxy:", shouldProxy);
+    if (shouldProxy) {
       console.log("[Leonardo.Ai] Proxy intercepting:", operationName);
 
       // Generate a unique request ID
@@ -1097,18 +1101,46 @@
       console.log("[Leonardo.Ai] All mocks cleared");
       return { success: true };
     },
-    // Enable proxy mode - all GraphQL requests will be forwarded to target tab
+    // Enable/disable proxy mode globally
     setProxyEnabled: function (params) {
       console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- setProxyEnabled called with params:", params);
       proxyState.enabled = params && params.enabled === true;
       proxyState.enabledBy = INSTANCE_ID;
+      // If disabling, also clear the operations set
+      if (!proxyState.enabled) {
+        proxyState.proxyOperations.clear();
+      }
       console.log("[Leonardo.Ai] Instance", INSTANCE_ID, "- Proxy mode:", proxyState.enabled ? "ENABLED" : "disabled");
       console.log("[Leonardo.Ai] window[PROXY_STATE_KEY].enabled =", window[PROXY_STATE_KEY].enabled);
       return { success: true, proxyEnabled: proxyState.enabled, instanceId: INSTANCE_ID };
     },
     // Get current proxy state
     getProxyEnabled: function () {
-      return { proxyEnabled: proxyState.enabled };
+      return { proxyEnabled: proxyState.enabled, proxyOperations: Array.from(proxyState.proxyOperations) };
+    },
+    // Add an operation to the proxy set
+    addProxyOperation: function (params) {
+      if (!params || !params.operationName) {
+        return { success: false, error: "operationName is required" };
+      }
+      proxyState.proxyOperations.add(params.operationName);
+      console.log("[Leonardo.Ai] Added proxy operation:", params.operationName, "total:", proxyState.proxyOperations.size);
+      return { success: true, operationName: params.operationName, proxyOperations: Array.from(proxyState.proxyOperations) };
+    },
+    // Remove an operation from the proxy set
+    removeProxyOperation: function (params) {
+      if (!params || !params.operationName) {
+        return { success: false, error: "operationName is required" };
+      }
+      proxyState.proxyOperations.delete(params.operationName);
+      console.log("[Leonardo.Ai] Removed proxy operation:", params.operationName, "total:", proxyState.proxyOperations.size);
+      return { success: true, operationName: params.operationName, proxyOperations: Array.from(proxyState.proxyOperations) };
+    },
+    // Clear all proxy operations
+    clearProxyOperations: function () {
+      proxyState.proxyOperations.clear();
+      console.log("[Leonardo.Ai] Cleared all proxy operations");
+      return { success: true };
     },
   };
 

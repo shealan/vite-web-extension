@@ -37,6 +37,7 @@ interface PersistedState {
   mockDataMap: Record<string, string>;
   mockFileInfoMap: Record<string, MockFileInfo>;
   mockEnabledMap: Record<string, boolean>;
+  proxyOperations?: string[]; // List of operation names to proxy
   activeTab: TabType;
   settings?: Settings;
 }
@@ -225,6 +226,8 @@ export default function Panel() {
   const [proxyError, setProxyError] = useState<string | null>(null);
   // Track which operations have proxied data: operationName -> proxied result
   const [proxiedDataMap, setProxiedDataMap] = useState<Record<string, unknown>>({});
+  // Track which operations should be proxied (persisted like mocks)
+  const [proxyOperations, setProxyOperations] = useState<Set<string>>(new Set());
 
   const portRef = useRef<chrome.runtime.Port | null>(null);
   const rpcClientRef = useRef<ReturnType<typeof createRpcClient> | null>(null);
@@ -272,6 +275,23 @@ export default function Panel() {
     []
   );
 
+  // Re-apply proxy operations to the injected script (used after page refresh)
+  const reapplyProxyOperations = useCallback(
+    async (operations: string[]) => {
+      if (!rpcClientRef.current || operations.length === 0) return;
+
+      for (const operationName of operations) {
+        try {
+          await rpcClientRef.current.request("addProxyOperation", { operationName });
+          console.log(`[Leonardo.Ai] Re-applied proxy operation: ${operationName}`);
+        } catch (err) {
+          console.error(`[Leonardo.Ai] Failed to re-apply proxy operation ${operationName}:`, err);
+        }
+      }
+    },
+    []
+  );
+
   // Load persisted state on mount
   useEffect(() => {
     loadPersistedState().then((persisted) => {
@@ -280,6 +300,7 @@ export default function Panel() {
         setMockDataMap(persisted.mockDataMap);
         setMockFileInfoMap(persisted.mockFileInfoMap || {});
         setMockEnabledMap(persisted.mockEnabledMap || {});
+        setProxyOperations(new Set(persisted.proxyOperations || []));
         setSettings(persisted.settings || defaultSettings);
         console.log("[Leonardo.Ai] Loaded persisted state:", persisted);
       }
@@ -295,6 +316,7 @@ export default function Panel() {
       mockDataMap,
       mockFileInfoMap,
       mockEnabledMap,
+      proxyOperations: Array.from(proxyOperations),
       activeTab,
       settings,
     });
@@ -302,6 +324,7 @@ export default function Panel() {
     mockDataMap,
     mockFileInfoMap,
     mockEnabledMap,
+    proxyOperations,
     activeTab,
     settings,
     isInitialized,
@@ -499,12 +522,26 @@ export default function Panel() {
     if (shouldBeEnabled && !currentlySent) {
       console.log("[Leonardo.Ai] Enabling proxy mode - Apollo connected and proxy target configured");
       proxyEnabledSentRef.current = true;
-      rpcClientRef.current.request("setProxyEnabled", { enabled: true })
-        .then((result) => console.log("[Leonardo.Ai] Proxy mode enabled in injected script, result:", result))
-        .catch((err) => {
-          console.error("[Leonardo.Ai] Failed to enable proxy mode:", err);
-          proxyEnabledSentRef.current = false; // Reset so we can retry
-        });
+
+      // Retry logic: if the RPC fails, retry a few times with delays
+      // This handles race conditions when the content script isn't fully ready
+      const enableWithRetry = (attempt: number) => {
+        if (!rpcClientRef.current) return;
+
+        rpcClientRef.current.request("setProxyEnabled", { enabled: true })
+          .then((result) => console.log("[Leonardo.Ai] Proxy mode enabled in injected script (attempt", attempt, "), result:", result))
+          .catch((err) => {
+            console.error("[Leonardo.Ai] Failed to enable proxy mode (attempt", attempt, "):", err);
+            if (attempt < 3) {
+              // Retry after a short delay
+              setTimeout(() => enableWithRetry(attempt + 1), 500);
+            } else {
+              proxyEnabledSentRef.current = false; // Reset so we can retry on next state change
+            }
+          });
+      };
+
+      enableWithRetry(1);
     } else if (!shouldBeEnabled && currentlySent) {
       // Only send disable if we previously sent enable
       console.log("[Leonardo.Ai] Disabling proxy mode - proxy target removed");
@@ -655,13 +692,17 @@ export default function Panel() {
       switch (message.type) {
         case "APOLLO_CLIENT_DETECTED":
           setState((prev) => ({ ...prev, isConnected: true }));
-          // Re-apply mocks and Chakra highlighter when Apollo Client is detected (after page load/refresh)
+          // Re-apply mocks, proxy operations, and Chakra highlighter when Apollo Client is detected (after page load/refresh)
           loadPersistedState().then((persisted) => {
             if (persisted?.mockDataMap) {
               reapplyMocks(
                 persisted.mockDataMap,
                 persisted.mockEnabledMap || {}
               );
+            }
+            // Re-apply proxy operations if we have an active proxy target
+            if (persisted?.proxyOperations && persisted.proxyOperations.length > 0 && proxyTargetTabIdRef.current) {
+              reapplyProxyOperations(persisted.proxyOperations);
             }
             // Re-inject Chakra highlighter if it was enabled
             if (persisted?.settings?.highlightChakra) {
@@ -769,7 +810,7 @@ export default function Panel() {
       rpcClient.cleanup();
       port.disconnect();
     };
-  }, [startPolling, stopPolling, reapplyMocks, injectChakraHighlighter]);
+  }, [startPolling, stopPolling, reapplyMocks, reapplyProxyOperations, injectChakraHighlighter]);
 
   const queries = state.operations.filter((op) => op.type === "query");
   const mutations = state.operations.filter((op) => op.type === "mutation");
@@ -932,6 +973,39 @@ export default function Panel() {
       },
     });
   }, [proxyTargetTabId]);
+
+  // Toggle proxy for a specific operation (add/remove from proxy set)
+  const handleProxyOperationToggle = useCallback((operationName: string, enabled: boolean) => {
+    if (!rpcClientRef.current) return;
+
+    if (enabled) {
+      // Add to proxy set
+      rpcClientRef.current.request("addProxyOperation", { operationName })
+        .then(() => {
+          console.log(`[Leonardo.Ai] Added proxy operation: ${operationName}`);
+          setProxyOperations((prev) => new Set([...prev, operationName]));
+        })
+        .catch((err) => console.error(`[Leonardo.Ai] Failed to add proxy operation:`, err));
+    } else {
+      // Remove from proxy set
+      rpcClientRef.current.request("removeProxyOperation", { operationName })
+        .then(() => {
+          console.log(`[Leonardo.Ai] Removed proxy operation: ${operationName}`);
+          setProxyOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(operationName);
+            return next;
+          });
+          // Also clear proxied data for this operation
+          setProxiedDataMap((prev) => {
+            const next = { ...prev };
+            delete next[operationName];
+            return next;
+          });
+        })
+        .catch((err) => console.error(`[Leonardo.Ai] Failed to remove proxy operation:`, err));
+    }
+  }, []);
 
   const tabs: { id: TabType; label: string; count?: number }[] = [
     { id: "queries", label: "Queries", count: queries.length },
@@ -1205,9 +1279,11 @@ export default function Panel() {
                     proxyTargetTabId={proxyTargetTabId}
                     proxyError={proxyError}
                     proxiedData={proxiedDataMap[selectedOperation.operationName]}
+                    isProxyEnabled={proxyOperations.has(selectedOperation.operationName)}
                     onProxyRegister={handleProxyRegister}
                     onProxyUnregister={handleProxyUnregister}
                     onProxyRequest={handleProxyRequest}
+                    onProxyOperationToggle={handleProxyOperationToggle}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-500">

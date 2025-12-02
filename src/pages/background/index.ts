@@ -342,47 +342,33 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   tabData.delete(tabId);
 });
 
-// Only reset on full page navigation (not SPA navigation)
-// We detect this by checking if the URL origin changes
+// Track tab URLs for navigation detection
 const tabUrls = new Map<number, string>();
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === "loading" && changeInfo.url) {
-    const previousUrl = tabUrls.get(tabId);
-    const newUrl = changeInfo.url;
+  // Detect page refresh/navigation when status changes to "loading"
+  // This catches both same-origin refreshes and cross-origin navigations
+  if (changeInfo.status === "loading") {
+    const newUrl = changeInfo.url || tab.url;
 
-    // Check if this is a full navigation (different origin) vs SPA navigation (same origin)
-    let isFullNavigation = true;
-    try {
-      if (previousUrl) {
-        const prevOrigin = new URL(previousUrl).origin;
-        const newOrigin = new URL(newUrl).origin;
-        isFullNavigation = prevOrigin !== newOrigin;
-      }
-    } catch {
-      // Invalid URL, treat as full navigation
+    if (newUrl) {
+      tabUrls.set(tabId, newUrl);
     }
 
-    tabUrls.set(tabId, newUrl);
-
-    if (isFullNavigation) {
-      // Reset data for this tab on full navigation
+    // Only process if we have a DevTools connection for this tab
+    const connection = devtoolsConnections.get(tabId);
+    if (connection) {
+      // Reset Apollo detection state - the page is reloading
       tabData.set(tabId, {
         apolloDetected: false,
         cache: null,
       });
 
-      // Note: We do NOT clear proxy relationships when the SOURCE tab navigates/refreshes
-      // The proxy should persist across refreshes, just like mocks do.
-      // The panel will re-enable proxy mode in the injected script when Apollo is detected.
-
-      // However, if this tab is a PROXY TARGET, notify source tabs that the target refreshed
-      // (they may want to know, but we still keep the registration)
+      // If this tab is a PROXY TARGET, notify source tabs that the target refreshed
       for (const [sourceId, targetId] of proxyTargets) {
         if (targetId === tabId) {
           const sourceConn = devtoolsConnections.get(sourceId);
           if (sourceConn) {
-            // Just notify, don't unregister - let the source decide
             sourceConn.port.postMessage({
               type: "PROXY_TARGET_REFRESHED",
               payload: { targetTabId: tabId },
@@ -391,12 +377,17 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         }
       }
 
-      // Update URL in connection info and broadcast
-      const connection = devtoolsConnections.get(tabId);
-      if (connection) {
+      // Update URL in connection info
+      if (newUrl) {
         connection.url = newUrl;
-        connection.port.postMessage({ type: "TAB_NAVIGATED" });
       }
+
+      // Always notify panel that the tab navigated/refreshed
+      // This allows the panel to reset proxyEnabledSentRef and re-enable proxy mode
+      connection.port.postMessage({ type: "TAB_NAVIGATED" });
+      console.log(`[Leonardo.Ai] Tab ${tabId} navigated/refreshed, notified panel`);
+
+      // Broadcast updated instances (URL may have changed)
       broadcastProxyInstances();
     }
   }
