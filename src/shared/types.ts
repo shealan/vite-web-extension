@@ -22,6 +22,7 @@ export interface GraphQLOperation {
   request?: RequestInfo; // The HTTP request info for debugging
   response?: ResponseInfo; // The HTTP response info for debugging
   options?: QueryOptions | null; // Apollo query options/policy
+  pollInterval?: number | null; // Polling interval in ms (if query is polling)
   error?: string;
   timestamp: number;
   duration?: number;

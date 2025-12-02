@@ -546,15 +546,6 @@ function OperationDetailInner({
             <h2 className="text-sm font-mono text-white">
               {operation.operationName}
             </h2>
-            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-              <span>{new Date(operation.timestamp).toLocaleTimeString()}</span>
-              {operation.duration && (
-                <span>{formatDuration(operation.duration)}</span>
-              )}
-              {operation.error && (
-                <span className="text-red-400">Has errors</span>
-              )}
-            </div>
           </div>
         </div>
       </div>

@@ -139,6 +139,7 @@ function convertToOperations(
       request: q.lastRequest,
       response: q.lastResponseInfo,
       options: q.options,
+      pollInterval: q.pollInterval,
       timestamp: q.lastResponseTimestamp ?? Date.now(),
       duration: q.lastResponseDuration,
       status: q.networkStatus === 1 ? "loading" : "success",
@@ -220,6 +221,8 @@ export default function Panel() {
   const portRef = useRef<chrome.runtime.Port | null>(null);
   const rpcClientRef = useRef<ReturnType<typeof createRpcClient> | null>(null);
   const pollingIntervalRef = useRef<number | null>(null);
+  // Track which operations have been seen since last clear
+  const seenOperationsRef = useRef<Set<string> | null>(null);
 
   // Derive selected operation from current operations list to stay reactive
   const selectedOperation = selectedOperationId
@@ -482,7 +485,34 @@ export default function Panel() {
         rpcClientRef.current.request<Record<string, unknown>>("getCache"),
       ]);
 
-      const newOperations = convertToOperations(queries || [], mutations || []);
+      let newOperations = convertToOperations(queries || [], mutations || []);
+
+      // If we have a filter set (after clear), only show operations with new responses
+      if (seenOperationsRef.current !== null) {
+        const seenOps = seenOperationsRef.current;
+        const clearedAt = (seenOps as Set<string> & { clearedAt: number }).clearedAt;
+
+        // Filter to only operations that have a new response timestamp
+        newOperations = newOperations.filter((op) => {
+          // If we've already seen this operation since clear, keep it
+          if (seenOps.has(op.operationName)) {
+            return true;
+          }
+
+          // Find the original raw data to check if it has a real response timestamp
+          const rawQuery = (queries || []).find(q => q.operationName === op.operationName);
+          const rawMutation = (mutations || []).find(m => m.operationName === op.operationName);
+          const hasRealTimestamp = rawQuery?.lastResponseTimestamp || rawMutation?.lastResponseTimestamp;
+
+          // Only show if it has an actual network response timestamp that's newer than clear time
+          if (hasRealTimestamp && hasRealTimestamp > clearedAt) {
+            seenOps.add(op.operationName);
+            return true;
+          }
+
+          return false;
+        });
+      }
 
       setState((prev) => {
         // Merge new operations with existing ones
@@ -498,10 +528,17 @@ export default function Panel() {
         for (const op of newOperations) {
           const existing = operationsByName.get(op.operationName);
           if (existing) {
+            // Find raw data to check if there's a real timestamp
+            const rawQuery = (queries || []).find(q => q.operationName === op.operationName);
+            const rawMutation = (mutations || []).find(m => m.operationName === op.operationName);
+            const hasRealTimestamp = rawQuery?.lastResponseTimestamp || rawMutation?.lastResponseTimestamp;
+
             // Update existing operation with new data but preserve id
+            // Also preserve existing timestamp if no real timestamp exists
             operationsByName.set(op.operationName, {
               ...op,
               id: existing.id, // Keep stable id for selection
+              timestamp: hasRealTimestamp ? op.timestamp : existing.timestamp,
             });
           } else {
             operationsByName.set(op.operationName, op);
@@ -587,6 +624,8 @@ export default function Panel() {
             isConnected: false,
             cache: null,
           }));
+          // Reset the filter so new queries after navigation are shown
+          seenOperationsRef.current = null;
           break;
       }
     });
@@ -615,6 +654,10 @@ export default function Panel() {
   const clearOperations = useCallback(() => {
     setState((prev) => ({ ...prev, operations: [] }));
     setSelectedOperationId(null);
+    // Set up filter to only show operations with new responses after this point
+    const seenOps = new Set<string>() as Set<string> & { clearedAt: number };
+    seenOps.clearedAt = Date.now();
+    seenOperationsRef.current = seenOps;
   }, []);
 
   const handleMockDataChange = useCallback(

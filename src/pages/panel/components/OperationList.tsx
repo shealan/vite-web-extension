@@ -50,6 +50,38 @@ function MockBadge() {
   );
 }
 
+// Clock icon component
+function ClockIcon() {
+  return (
+    <svg
+      className="w-3 h-3 text-gray-500"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <circle cx="12" cy="12" r="10" strokeWidth="2" />
+      <path strokeLinecap="round" strokeWidth="2" d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+// Stopwatch icon component
+function StopwatchIcon() {
+  return (
+    <svg
+      className="w-3 h-3"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <circle cx="12" cy="13" r="8" strokeWidth="2" />
+      <path strokeLinecap="round" strokeWidth="2" d="M12 9v4l2 2" />
+      <path strokeLinecap="round" strokeWidth="2" d="M12 5V3" />
+      <path strokeLinecap="round" strokeWidth="2" d="M10 3h4" />
+    </svg>
+  );
+}
+
 export function OperationList({
   operations,
   selectedId,
@@ -127,7 +159,18 @@ export function OperationList({
                   </div>
                 </div>
                 <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
-                  <span>{formatTime(operation.timestamp)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <ClockIcon />
+                      <span>{formatTime(operation.timestamp)}</span>
+                    </span>
+                    {operation.pollInterval != null && operation.pollInterval > 0 && (
+                      <span className="flex items-center gap-1 text-gray-500">
+                        <StopwatchIcon />
+                        <span className="animate-pulse">{formatPollInterval(operation.pollInterval)}</span>
+                      </span>
+                    )}
+                  </div>
                   {operation.status === "loading" ? (
                     <span className="text-purple-400">loading...</span>
                   ) : operation.duration ? (
@@ -156,6 +199,22 @@ function formatTime(timestamp: number): string {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function formatPollInterval(ms: number): string {
+  if (ms < 1000) return `${ms} ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds} sec`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) {
+    if (remainingSeconds === 0) return `${minutes} min`;
+    return `${minutes} min ${remainingSeconds} sec`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes === 0) return `${hours} hrs`;
+  return `${hours} hrs ${remainingMinutes} min`;
 }
 
 function formatDuration(ms: number): string {
