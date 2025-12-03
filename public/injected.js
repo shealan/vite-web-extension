@@ -4,7 +4,7 @@
 (function () {
   "use strict";
 
-  const SOURCE = "apollo-lite-devtools-page";
+  const SOURCE = "leonardo-devtools-page";
 
   // Store last response for each operation (by operation name)
   const lastResponses = new Map();
@@ -47,7 +47,7 @@
       }
 
       this.element = document.createElement("div");
-      this.element.id = "apollo-lite-toast-container";
+      this.element.id = "leonardo-toast-container";
       this.element.style.cssText = `
         position: fixed;
         bottom: 16px;
@@ -116,9 +116,9 @@
       `;
 
       // Add keyframes if not already added
-      if (!document.getElementById("apollo-lite-toast-styles")) {
+      if (!document.getElementById("leonardo-toast-styles")) {
         const style = document.createElement("style");
-        style.id = "apollo-lite-toast-styles";
+        style.id = "leonardo-toast-styles";
         style.textContent = `
           @keyframes apolloLiteToastFadeIn {
             from { opacity: 0; transform: translateY(20px); }
@@ -134,7 +134,8 @@
 
       // Icon (database-zap style - cylinder with lightning bolt)
       const icon = document.createElement("span");
-      icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/><path d="M13 12l-2 4h3l-2 4"/></svg>';
+      icon.innerHTML =
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/><path d="M13 12l-2 4h3l-2 4"/></svg>';
       icon.style.cssText =
         "display: flex; align-items: center; flex-shrink: 0;";
 
@@ -232,9 +233,9 @@
       `;
 
       // Add keyframes if not already added
-      if (!document.getElementById("apollo-lite-toast-styles")) {
+      if (!document.getElementById("leonardo-toast-styles")) {
         const style = document.createElement("style");
-        style.id = "apollo-lite-toast-styles";
+        style.id = "leonardo-toast-styles";
         style.textContent = `
           @keyframes apolloLiteToastFadeIn {
             from { opacity: 0; transform: translateY(20px); }
@@ -250,7 +251,8 @@
 
       // Proxy icon (arrow through circle)
       const icon = document.createElement("span");
-      icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8l4 4-4 4"/></svg>';
+      icon.innerHTML =
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8l4 4-4 4"/></svg>';
       icon.style.cssText =
         "display: flex; align-items: center; flex-shrink: 0;";
 
@@ -602,10 +604,14 @@
               options = {
                 fetchPolicy: oq.options.fetchPolicy || null,
                 errorPolicy: oq.options.errorPolicy || null,
-                notifyOnNetworkStatusChange: oq.options.notifyOnNetworkStatusChange || false,
+                notifyOnNetworkStatusChange:
+                  oq.options.notifyOnNetworkStatusChange || false,
                 returnPartialData: oq.options.returnPartialData || false,
                 partialRefetch: oq.options.partialRefetch || false,
-                canonizeResults: oq.options.canonizeResults !== undefined ? oq.options.canonizeResults : null,
+                canonizeResults:
+                  oq.options.canonizeResults !== undefined
+                    ? oq.options.canonizeResults
+                    : null,
               };
             }
 
@@ -769,275 +775,303 @@
     // Already wrapped, skip
   } else {
     window[FETCH_WRAPPED_KEY] = true;
-  window.fetch = function (input, init) {
-    const url = typeof input === "string" ? input : input.url;
+    window.fetch = function (input, init) {
+      const url = typeof input === "string" ? input : input.url;
 
-    // Check if this looks like a GraphQL request
-    const isGraphQL =
-      url.includes("graphql") ||
-      (init &&
-        init.body &&
-        typeof init.body === "string" &&
-        init.body.includes('"query"'));
+      // Check if this looks like a GraphQL request
+      const isGraphQL =
+        url.includes("graphql") ||
+        (init &&
+          init.body &&
+          typeof init.body === "string" &&
+          init.body.includes('"query"'));
 
-    // Detect logout - next-auth signout endpoint
-    if (url.includes('/api/auth/signout') || url.includes('/api/auth/callback/signout')) {
-      postMessage('USER_LOGGED_OUT', { timestamp: Date.now() });
-      return originalFetch.apply(this, arguments);
-    }
-
-    if (!isGraphQL) {
-      return originalFetch.apply(this, arguments);
-    }
-
-    // Parse the request to get operation info
-    let operationName = null;
-    let queryString = null;
-    let variables = null;
-    let requestBody = null;
-
-    try {
-      if (init && init.body) {
-        requestBody = init.body;
-        const body = JSON.parse(init.body);
-        operationName = body.operationName;
-        queryString = body.query;
-        variables = body.variables;
+      // Detect logout - next-auth signout endpoint
+      if (
+        url.includes("/api/auth/signout") ||
+        url.includes("/api/auth/callback/signout")
+      ) {
+        postMessage("USER_LOGGED_OUT", { timestamp: Date.now() });
+        return originalFetch.apply(this, arguments);
       }
-    } catch (e) {
-      // Not JSON, ignore
-    }
 
-    // Capture request info
-    const requestHeaders = extractHeaders(init, input);
-    const requestInfo = {
-      url: url,
-      method: (init && init.method) || "POST",
-      headers: requestHeaders,
-      body: requestBody,
-    };
+      if (!isGraphQL) {
+        return originalFetch.apply(this, arguments);
+      }
 
-    // Check if we have a mock override for this operation
-    if (operationName && mockOverrides.has(operationName)) {
-      const mockConfig = mockOverrides.get(operationName);
-      let mockData;
+      // Parse the request to get operation info
+      let operationName = null;
+      let queryString = null;
+      let variables = null;
+      let requestBody = null;
 
-      // Check if this is a JS mock (has __mockType and __mockScript)
-      var isJsMock =
-        mockConfig && mockConfig.__mockType === "js" && mockConfig.__mockScript;
-      if (isJsMock) {
-        try {
-          // Execute the JS script to get the mock data
-          // The script has access to: variables, operationName, request
-          // request contains: url, method, headers, body (raw string), parsedBody (parsed JSON)
-          var parsedBody = null;
-          try {
-            parsedBody = requestBody ? JSON.parse(requestBody) : null;
-          } catch (e) {
-            // Body is not valid JSON
-          }
-          var mockRequest = {
-            url: url,
-            method: (init && init.method) || "POST",
-            headers: requestHeaders,
-            body: requestBody,
-            parsedBody: parsedBody,
-          };
-          // eslint-disable-next-line no-new-func
-          const mockFn = new Function(
-            "variables",
-            "operationName",
-            "request",
-            mockConfig.__mockScript
-          );
-          mockData = mockFn(variables, operationName, mockRequest);
-        } catch (e) {
-          console.error(
-            "[Leonardo.Ai] JS mock execution error for:",
-            operationName,
-            e
-          );
-          // On error, fall through to real request
-          return originalFetch.apply(this, arguments);
+      try {
+        if (init && init.body) {
+          requestBody = init.body;
+          const body = JSON.parse(init.body);
+          operationName = body.operationName;
+          queryString = body.query;
+          variables = body.variables;
         }
-      } else {
-        // Regular JSON mock
-        mockData = mockConfig;
-      }
-
-      // Show toast notification
-      try {
-        toastContainer.show(operationName);
       } catch (e) {
-        console.error("[Leonardo.Ai] Toast error:", e);
+        // Not JSON, ignore
       }
 
-      // Store the mock as the last response
-      lastResponses.set(operationName, {
-        data: mockData,
-        timestamp: Date.now(),
-        variables: variables,
-        isMocked: true,
-        request: requestInfo,
-        response: {
-          status: 200,
-          statusText: "OK (Mocked)",
-          headers: { "content-type": "application/json" },
-        },
-      });
-
-      // Return a fake Response with the mock data
-      return Promise.resolve(
-        new Response(JSON.stringify(mockData), {
-          status: 200,
-          statusText: "OK",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        })
-      );
-    }
-
-    // Check if this specific operation should be proxied
-    // proxyState.enabled must be true AND the operation must be in proxyOperations set
-    const shouldProxy = proxyState.enabled && operationName && queryString && proxyState.proxyOperations.has(operationName);
-    if (shouldProxy) {
-
-      // Generate a unique request ID
-      const proxyRequestId = operationName + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
-
-      // Show proxy toast notification
-      try {
-        toastContainer.showProxy(operationName);
-      } catch (e) {
-        console.error("[Leonardo.Ai] Proxy toast error:", e);
-      }
-
-      // Create a promise that will be resolved when we get the proxy response
-      return new Promise(function (resolve, reject) {
-        // Set up timeout (30 seconds)
-        const timeoutId = setTimeout(function () {
-          proxyState.pendingFetches.delete(proxyRequestId);
-          console.error("[Leonardo.Ai] Proxy request timeout for:", operationName);
-          // On timeout, fall back to local execution
-          originalFetch.apply(window, [input, init]).then(resolve).catch(reject);
-        }, 30000);
-
-        // Store the resolver for when we get the response
-        proxyState.pendingFetches.set(proxyRequestId, {
-          resolve: function (proxyResponse) {
-            clearTimeout(timeoutId);
-            proxyState.pendingFetches.delete(proxyRequestId);
-
-            // Check for error in proxy response
-            if (proxyResponse.error && !proxyResponse.data) {
-              console.error("[Leonardo.Ai] Proxy error for:", operationName, proxyResponse.error);
-              // On error, fall back to local execution
-              originalFetch.apply(window, [input, init]).then(resolve).catch(reject);
-              return;
-            }
-
-            // Store the proxied response
-            lastResponses.set(operationName, {
-              data: { data: proxyResponse.data },
-              timestamp: Date.now(),
-              duration: proxyResponse.duration,
-              variables: variables,
-              isProxied: true,
-              request: requestInfo,
-              response: {
-                status: 200,
-                statusText: "OK (Proxied)",
-                headers: { "content-type": "application/json" },
-              },
-            });
-
-            // Return a fake Response with the proxied data
-            resolve(
-              new Response(JSON.stringify({ data: proxyResponse.data }), {
-                status: 200,
-                statusText: "OK",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              })
-            );
-          },
-          reject: reject,
-          operationName: operationName,
-        });
-
-        // Send proxy request to content script
-        postMessage("PROXY_FETCH_REQUEST", {
-          requestId: proxyRequestId,
-          operationName: operationName,
-          query: queryString,
-          variables: variables,
-        });
-      });
-    }
-
-    // Capture start time for duration calculation
-    const startTime = Date.now();
-
-    return originalFetch.apply(this, arguments).then(function (response) {
-      // Calculate request duration
-      const duration = Date.now() - startTime;
-
-      // Clone the response so we can read the body
-      const clonedResponse = response.clone();
-
-      // Capture response info (headers, status)
-      const responseHeaders = {};
-      response.headers.forEach(function (value, key) {
-        responseHeaders[key] = value;
-      });
-      const responseInfo = {
-        status: response.status,
-        statusText: response.statusText,
-        headers: responseHeaders,
+      // Capture request info
+      const requestHeaders = extractHeaders(init, input);
+      const requestInfo = {
+        url: url,
+        method: (init && init.method) || "POST",
+        headers: requestHeaders,
+        body: requestBody,
       };
 
-      clonedResponse
-        .json()
-        .then(function (data) {
-          if (operationName && data) {
-            // Store the response for this operation
-            lastResponses.set(operationName, {
-              data: data,
-              timestamp: Date.now(),
-              duration: duration,
-              variables: variables,
-              request: requestInfo,
-              response: responseInfo,
-            });
+      // Check if we have a mock override for this operation
+      if (operationName && mockOverrides.has(operationName)) {
+        const mockConfig = mockOverrides.get(operationName);
+        let mockData;
 
-            // Keep map size bounded
-            if (lastResponses.size > 100) {
-              const firstKey = lastResponses.keys().next().value;
-              lastResponses.delete(firstKey);
+        // Check if this is a JS mock (has __mockType and __mockScript)
+        var isJsMock =
+          mockConfig &&
+          mockConfig.__mockType === "js" &&
+          mockConfig.__mockScript;
+        if (isJsMock) {
+          try {
+            // Execute the JS script to get the mock data
+            // The script has access to: variables, operationName, request
+            // request contains: url, method, headers, body (raw string), parsedBody (parsed JSON)
+            var parsedBody = null;
+            try {
+              parsedBody = requestBody ? JSON.parse(requestBody) : null;
+            } catch (e) {
+              // Body is not valid JSON
             }
-
-            // Special handling for GetUserDetails - relay to extension for popup
-            if (operationName === "GetUserDetails" && data.data) {
-              // Handle both users array and users_by_pk formats
-              const userData = data.data.users_by_pk || (data.data.users && data.data.users[0]);
-              if (userData) {
-                postMessage("USER_DATA_UPDATE", {
-                  user: userData,
-                  timestamp: Date.now(),
-                });
-              }
-            }
+            var mockRequest = {
+              url: url,
+              method: (init && init.method) || "POST",
+              headers: requestHeaders,
+              body: requestBody,
+              parsedBody: parsedBody,
+            };
+            // eslint-disable-next-line no-new-func
+            const mockFn = new Function(
+              "variables",
+              "operationName",
+              "request",
+              mockConfig.__mockScript
+            );
+            mockData = mockFn(variables, operationName, mockRequest);
+          } catch (e) {
+            console.error(
+              "[Leonardo.Ai] JS mock execution error for:",
+              operationName,
+              e
+            );
+            // On error, fall through to real request
+            return originalFetch.apply(this, arguments);
           }
-        })
-        .catch(function () {
-          // Not JSON response, ignore
+        } else {
+          // Regular JSON mock
+          mockData = mockConfig;
+        }
+
+        // Show toast notification
+        try {
+          toastContainer.show(operationName);
+        } catch (e) {
+          console.error("[Leonardo.Ai] Toast error:", e);
+        }
+
+        // Store the mock as the last response
+        lastResponses.set(operationName, {
+          data: mockData,
+          timestamp: Date.now(),
+          variables: variables,
+          isMocked: true,
+          request: requestInfo,
+          response: {
+            status: 200,
+            statusText: "OK (Mocked)",
+            headers: { "content-type": "application/json" },
+          },
         });
 
-      return response;
-    });
-  };
+        // Return a fake Response with the mock data
+        return Promise.resolve(
+          new Response(JSON.stringify(mockData), {
+            status: 200,
+            statusText: "OK",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+        );
+      }
+
+      // Check if this specific operation should be proxied
+      // proxyState.enabled must be true AND the operation must be in proxyOperations set
+      const shouldProxy =
+        proxyState.enabled &&
+        operationName &&
+        queryString &&
+        proxyState.proxyOperations.has(operationName);
+      if (shouldProxy) {
+        // Generate a unique request ID
+        const proxyRequestId =
+          operationName +
+          "-" +
+          Date.now() +
+          "-" +
+          Math.random().toString(36).slice(2, 9);
+
+        // Show proxy toast notification
+        try {
+          toastContainer.showProxy(operationName);
+        } catch (e) {
+          console.error("[Leonardo.Ai] Proxy toast error:", e);
+        }
+
+        // Create a promise that will be resolved when we get the proxy response
+        return new Promise(function (resolve, reject) {
+          // Set up timeout (30 seconds)
+          const timeoutId = setTimeout(function () {
+            proxyState.pendingFetches.delete(proxyRequestId);
+            console.error(
+              "[Leonardo.Ai] Proxy request timeout for:",
+              operationName
+            );
+            // On timeout, fall back to local execution
+            originalFetch
+              .apply(window, [input, init])
+              .then(resolve)
+              .catch(reject);
+          }, 30000);
+
+          // Store the resolver for when we get the response
+          proxyState.pendingFetches.set(proxyRequestId, {
+            resolve: function (proxyResponse) {
+              clearTimeout(timeoutId);
+              proxyState.pendingFetches.delete(proxyRequestId);
+
+              // Check for error in proxy response
+              if (proxyResponse.error && !proxyResponse.data) {
+                console.error(
+                  "[Leonardo.Ai] Proxy error for:",
+                  operationName,
+                  proxyResponse.error
+                );
+                // On error, fall back to local execution
+                originalFetch
+                  .apply(window, [input, init])
+                  .then(resolve)
+                  .catch(reject);
+                return;
+              }
+
+              // Store the proxied response
+              lastResponses.set(operationName, {
+                data: { data: proxyResponse.data },
+                timestamp: Date.now(),
+                duration: proxyResponse.duration,
+                variables: variables,
+                isProxied: true,
+                request: requestInfo,
+                response: {
+                  status: 200,
+                  statusText: "OK (Proxied)",
+                  headers: { "content-type": "application/json" },
+                },
+              });
+
+              // Return a fake Response with the proxied data
+              resolve(
+                new Response(JSON.stringify({ data: proxyResponse.data }), {
+                  status: 200,
+                  statusText: "OK",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                })
+              );
+            },
+            reject: reject,
+            operationName: operationName,
+          });
+
+          // Send proxy request to content script
+          postMessage("PROXY_FETCH_REQUEST", {
+            requestId: proxyRequestId,
+            operationName: operationName,
+            query: queryString,
+            variables: variables,
+          });
+        });
+      }
+
+      // Capture start time for duration calculation
+      const startTime = Date.now();
+
+      return originalFetch.apply(this, arguments).then(function (response) {
+        // Calculate request duration
+        const duration = Date.now() - startTime;
+
+        // Clone the response so we can read the body
+        const clonedResponse = response.clone();
+
+        // Capture response info (headers, status)
+        const responseHeaders = {};
+        response.headers.forEach(function (value, key) {
+          responseHeaders[key] = value;
+        });
+        const responseInfo = {
+          status: response.status,
+          statusText: response.statusText,
+          headers: responseHeaders,
+        };
+
+        clonedResponse
+          .json()
+          .then(function (data) {
+            if (operationName && data) {
+              // Store the response for this operation
+              lastResponses.set(operationName, {
+                data: data,
+                timestamp: Date.now(),
+                duration: duration,
+                variables: variables,
+                request: requestInfo,
+                response: responseInfo,
+              });
+
+              // Keep map size bounded
+              if (lastResponses.size > 100) {
+                const firstKey = lastResponses.keys().next().value;
+                lastResponses.delete(firstKey);
+              }
+
+              // Special handling for GetUserDetails - relay to extension for popup
+              if (operationName === "GetUserDetails" && data.data) {
+                // Handle both users array and users_by_pk formats
+                const userData =
+                  data.data.users_by_pk ||
+                  (data.data.users && data.data.users[0]);
+                if (userData) {
+                  postMessage("USER_DATA_UPDATE", {
+                    user: userData,
+                    timestamp: Date.now(),
+                  });
+                }
+              }
+            }
+          })
+          .catch(function () {
+            // Not JSON response, ignore
+          });
+
+        return response;
+      });
+    };
   } // End of fetch wrapper conditional
 
   // RPC request handlers
@@ -1094,11 +1128,18 @@
       if (!proxyState.enabled) {
         proxyState.proxyOperations.clear();
       }
-      return { success: true, proxyEnabled: proxyState.enabled, instanceId: INSTANCE_ID };
+      return {
+        success: true,
+        proxyEnabled: proxyState.enabled,
+        instanceId: INSTANCE_ID,
+      };
     },
     // Get current proxy state
     getProxyEnabled: function () {
-      return { proxyEnabled: proxyState.enabled, proxyOperations: Array.from(proxyState.proxyOperations) };
+      return {
+        proxyEnabled: proxyState.enabled,
+        proxyOperations: Array.from(proxyState.proxyOperations),
+      };
     },
     // Add an operation to the proxy set
     addProxyOperation: function (params) {
@@ -1106,7 +1147,11 @@
         return { success: false, error: "operationName is required" };
       }
       proxyState.proxyOperations.add(params.operationName);
-      return { success: true, operationName: params.operationName, proxyOperations: Array.from(proxyState.proxyOperations) };
+      return {
+        success: true,
+        operationName: params.operationName,
+        proxyOperations: Array.from(proxyState.proxyOperations),
+      };
     },
     // Remove an operation from the proxy set
     removeProxyOperation: function (params) {
@@ -1114,7 +1159,11 @@
         return { success: false, error: "operationName is required" };
       }
       proxyState.proxyOperations.delete(params.operationName);
-      return { success: true, operationName: params.operationName, proxyOperations: Array.from(proxyState.proxyOperations) };
+      return {
+        success: true,
+        operationName: params.operationName,
+        proxyOperations: Array.from(proxyState.proxyOperations),
+      };
     },
     // Clear all proxy operations
     clearProxyOperations: function () {
@@ -1203,7 +1252,8 @@
         } else {
           resolve({
             requestId: payload.requestId,
-            error: "Could not find query document. The operation may not be active on the target page.",
+            error:
+              "Could not find query document. The operation may not be active on the target page.",
           });
           return;
         }
@@ -1247,7 +1297,7 @@
   // Listen for RPC requests from content script
   window.addEventListener("message", function (event) {
     if (event.source !== window) return;
-    if (!event.data || event.data.source !== "apollo-lite-devtools-content")
+    if (!event.data || event.data.source !== "leonardo-devtools-content")
       return;
 
     const type = event.data.type;

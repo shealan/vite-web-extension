@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Leonardo.Ai",
-  "description": "A lightweight Apollo Client DevTools alternative",
+  "name": "Leonardo.Ai DevTools",
+  "description": "A Chrome DevTools extension to assist developers building the Leonardo.Ai web platform.",
   "icons": {
     "128": "icon-128.png"
   },
@@ -12,7 +12,8 @@
   "permissions": [
     "scripting",
     "storage",
-    "cookies"
+    "cookies",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "<all_urls>"

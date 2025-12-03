@@ -13,7 +13,7 @@ export interface ResponseInfo {
 
 export interface GraphQLOperation {
   id: string;
-  type: 'query' | 'mutation' | 'subscription';
+  type: "query" | "mutation" | "subscription";
   operationName: string;
   query: string;
   variables?: Record<string, unknown>;
@@ -26,7 +26,7 @@ export interface GraphQLOperation {
   error?: string;
   timestamp: number;
   duration?: number;
-  status: 'loading' | 'success' | 'error';
+  status: "loading" | "success" | "error";
 }
 
 export interface ApolloCache {
@@ -35,31 +35,46 @@ export interface ApolloCache {
 }
 
 export type MessageType =
-  | 'APOLLO_CLIENT_DETECTED'
-  | 'APOLLO_CLIENT_NOT_FOUND'
-  | 'GRAPHQL_OPERATION'
-  | 'CACHE_UPDATE'
-  | 'REQUEST_CACHE'
-  | 'RPC_REQUEST'
-  | 'RPC_RESPONSE'
-  | 'TAB_NAVIGATED'
+  | "APOLLO_CLIENT_DETECTED"
+  | "APOLLO_CLIENT_NOT_FOUND"
+  | "GRAPHQL_OPERATION"
+  | "CACHE_UPDATE"
+  | "REQUEST_CACHE"
+  | "RPC_REQUEST"
+  | "RPC_RESPONSE"
+  | "TAB_NAVIGATED"
   // Proxy-related message types
-  | 'PROXY_REGISTER'
-  | 'PROXY_UNREGISTER'
-  | 'PROXY_INSTANCES_UPDATE'
-  | 'PROXY_REQUEST'
-  | 'PROXY_RESPONSE'
-  | 'PROXY_TARGET_REFRESHED';
+  | "PROXY_REGISTER"
+  | "PROXY_UNREGISTER"
+  | "PROXY_INSTANCES_UPDATE"
+  | "PROXY_REQUEST"
+  | "PROXY_RESPONSE"
+  | "PROXY_TARGET_REFRESHED";
 
 export interface ExtensionMessage {
-  source: 'apollo-lite-devtools';
+  source: "leonardo-devtools";
   type: MessageType;
   payload?: unknown;
   tabId?: number;
 }
 
 // RPC types for internal use
-export type RpcMethod = 'getQueries' | 'getMutations' | 'getCache' | 'getClientInfo' | 'setMockData' | 'getMockData' | 'clearAllMocks' | 'setProxyTarget' | 'clearProxy' | 'executeProxyRequest' | 'setProxyEnabled' | 'getProxyEnabled' | 'addProxyOperation' | 'removeProxyOperation' | 'clearProxyOperations';
+export type RpcMethod =
+  | "getQueries"
+  | "getMutations"
+  | "getCache"
+  | "getClientInfo"
+  | "setMockData"
+  | "getMockData"
+  | "clearAllMocks"
+  | "setProxyTarget"
+  | "clearProxy"
+  | "executeProxyRequest"
+  | "setProxyEnabled"
+  | "getProxyEnabled"
+  | "addProxyOperation"
+  | "removeProxyOperation"
+  | "clearProxyOperations";
 
 // Proxy types
 export interface ProxyInstance {

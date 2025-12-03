@@ -209,7 +209,10 @@ async function clearPersistedProxyOperations(): Promise<void> {
       await chrome.storage.local.set({ [STORAGE_KEY]: persisted });
     }
   } catch (e) {
-    console.error("[Leonardo.Ai] Failed to clear persisted proxy operations:", e);
+    console.error(
+      "[Leonardo.Ai] Failed to clear persisted proxy operations:",
+      e
+    );
   }
 }
 
@@ -240,9 +243,13 @@ export default function Panel() {
   const [proxyTargetTabId, setProxyTargetTabId] = useState<number | null>(null);
   const [proxyError, setProxyError] = useState<string | null>(null);
   // Track which operations have proxied data: operationName -> proxied result
-  const [proxiedDataMap, setProxiedDataMap] = useState<Record<string, unknown>>({});
+  const [proxiedDataMap, setProxiedDataMap] = useState<Record<string, unknown>>(
+    {}
+  );
   // Track which operations should be proxied (persisted like mocks)
-  const [proxyOperations, setProxyOperations] = useState<Set<string>>(new Set());
+  const [proxyOperations, setProxyOperations] = useState<Set<string>>(
+    new Set()
+  );
 
   const portRef = useRef<chrome.runtime.Port | null>(null);
   const rpcClientRef = useRef<ReturnType<typeof createRpcClient> | null>(null);
@@ -291,21 +298,25 @@ export default function Panel() {
   );
 
   // Re-apply proxy operations to the injected script (used after page refresh)
-  const reapplyProxyOperations = useCallback(
-    async (operations: string[]) => {
-      if (!rpcClientRef.current || operations.length === 0) return;
+  const reapplyProxyOperations = useCallback(async (operations: string[]) => {
+    if (!rpcClientRef.current || operations.length === 0) return;
 
-      for (const operationName of operations) {
-        try {
-          await rpcClientRef.current.request("addProxyOperation", { operationName });
-          console.log(`[Leonardo.Ai] Re-applied proxy operation: ${operationName}`);
-        } catch (err) {
-          console.error(`[Leonardo.Ai] Failed to re-apply proxy operation ${operationName}:`, err);
-        }
+    for (const operationName of operations) {
+      try {
+        await rpcClientRef.current.request("addProxyOperation", {
+          operationName,
+        });
+        console.log(
+          `[Leonardo.Ai] Re-applied proxy operation: ${operationName}`
+        );
+      } catch (err) {
+        console.error(
+          `[Leonardo.Ai] Failed to re-apply proxy operation ${operationName}:`,
+          err
+        );
       }
-    },
-    []
-  );
+    }
+  }, []);
 
   // Load persisted state on mount
   useEffect(() => {
@@ -541,7 +552,8 @@ export default function Panel() {
       const enableWithRetry = (attempt: number) => {
         if (!rpcClientRef.current) return;
 
-        rpcClientRef.current.request("setProxyEnabled", { enabled: true })
+        rpcClientRef.current
+          .request("setProxyEnabled", { enabled: true })
           .catch(() => {
             if (attempt < 3) {
               // Retry after a short delay
@@ -556,7 +568,8 @@ export default function Panel() {
     } else if (!shouldBeEnabled && currentlySent) {
       // Only send disable if we previously sent enable
       proxyEnabledSentRef.current = false;
-      rpcClientRef.current.request("setProxyEnabled", { enabled: false })
+      rpcClientRef.current
+        .request("setProxyEnabled", { enabled: false })
         .catch(() => {
           // Ignore errors when disabling - content script might not be ready
         });
@@ -579,7 +592,8 @@ export default function Panel() {
       // If we have a filter set (after clear), only show operations with new responses
       if (seenOperationsRef.current !== null) {
         const seenOps = seenOperationsRef.current;
-        const clearedAt = (seenOps as Set<string> & { clearedAt: number }).clearedAt;
+        const clearedAt = (seenOps as Set<string> & { clearedAt: number })
+          .clearedAt;
 
         // Filter to only operations that have a new response timestamp
         newOperations = newOperations.filter((op) => {
@@ -589,9 +603,15 @@ export default function Panel() {
           }
 
           // Find the original raw data to check if it has a real response timestamp
-          const rawQuery = (queries || []).find(q => q.operationName === op.operationName);
-          const rawMutation = (mutations || []).find(m => m.operationName === op.operationName);
-          const hasRealTimestamp = rawQuery?.lastResponseTimestamp || rawMutation?.lastResponseTimestamp;
+          const rawQuery = (queries || []).find(
+            (q) => q.operationName === op.operationName
+          );
+          const rawMutation = (mutations || []).find(
+            (m) => m.operationName === op.operationName
+          );
+          const hasRealTimestamp =
+            rawQuery?.lastResponseTimestamp ||
+            rawMutation?.lastResponseTimestamp;
 
           // Only show if it has an actual network response timestamp that's newer than clear time
           if (hasRealTimestamp && hasRealTimestamp > clearedAt) {
@@ -630,9 +650,15 @@ export default function Panel() {
           const existing = operationsByName.get(op.operationName);
           if (existing) {
             // Find raw data to check if there's a real timestamp
-            const rawQuery = (queries || []).find(q => q.operationName === op.operationName);
-            const rawMutation = (mutations || []).find(m => m.operationName === op.operationName);
-            const hasRealTimestamp = rawQuery?.lastResponseTimestamp || rawMutation?.lastResponseTimestamp;
+            const rawQuery = (queries || []).find(
+              (q) => q.operationName === op.operationName
+            );
+            const rawMutation = (mutations || []).find(
+              (m) => m.operationName === op.operationName
+            );
+            const hasRealTimestamp =
+              rawQuery?.lastResponseTimestamp ||
+              rawMutation?.lastResponseTimestamp;
 
             // Update existing operation with new data but preserve id
             // Also preserve existing timestamp if no real timestamp exists
@@ -681,7 +707,7 @@ export default function Panel() {
 
   useEffect(() => {
     // Connect to background script
-    const port = chrome.runtime.connect({ name: "apollo-lite-devtools" });
+    const port = chrome.runtime.connect({ name: "leonardo-devtools" });
     portRef.current = port;
 
     // Create RPC client
@@ -721,7 +747,11 @@ export default function Panel() {
               );
             }
             // Re-apply proxy operations if we have an active proxy target
-            if (persisted?.proxyOperations && persisted.proxyOperations.length > 0 && proxyTargetTabIdRef.current) {
+            if (
+              persisted?.proxyOperations &&
+              persisted.proxyOperations.length > 0 &&
+              proxyTargetTabIdRef.current
+            ) {
               reapplyProxyOperations(persisted.proxyOperations);
             }
             // Re-inject Chakra highlighter if it was enabled
@@ -762,7 +792,9 @@ export default function Panel() {
             proxyTargetTabIdRef.current = targetTabId; // Keep ref in sync for reconnection
             setProxyError(null);
             const currentTabId = chrome.devtools.inspectedWindow.tabId;
-            console.log(`[Leonardo.Ai] Proxy registered: source tab ${currentTabId} -> target tab ${targetTabId}`);
+            console.log(
+              `[Leonardo.Ai] Proxy registered: source tab ${currentTabId} -> target tab ${targetTabId}`
+            );
             // Note: setProxyEnabled will be called by the useEffect that watches for
             // proxyTargetTabId + state.isConnected changes. This ensures we only send
             // the RPC when the content script is ready (Apollo detected).
@@ -778,7 +810,11 @@ export default function Panel() {
           setProxyTargetTabId(null);
           proxyTargetTabIdRef.current = null; // Clear ref
           setProxiedDataMap({});
-          console.log(`[Leonardo.Ai] Proxy unregistered: ${message.payload?.reason || "unknown"}`);
+          console.log(
+            `[Leonardo.Ai] Proxy unregistered: ${
+              message.payload?.reason || "unknown"
+            }`
+          );
           // Note: setProxyEnabled(false) is handled by the useEffect watching proxyTargetTabId
           break;
 
@@ -796,7 +832,9 @@ export default function Panel() {
         case "PROXY_TARGET_REFRESHED":
           // Target tab was refreshed - just log, keep the proxy connection
           // The proxy will continue working once target's Apollo Client is ready again
-          console.log(`[Leonardo.Ai] Proxy target tab ${message.payload?.targetTabId} was refreshed`);
+          console.log(
+            `[Leonardo.Ai] Proxy target tab ${message.payload?.targetTabId} was refreshed`
+          );
           break;
       }
     });
@@ -808,7 +846,9 @@ export default function Panel() {
     // We use a small delay to ensure the connection is fully established
     const savedProxyTarget = proxyTargetTabIdRef.current;
     if (savedProxyTarget) {
-      console.log(`[Leonardo.Ai] Re-registering proxy to target ${savedProxyTarget} after reconnection`);
+      console.log(
+        `[Leonardo.Ai] Re-registering proxy to target ${savedProxyTarget} after reconnection`
+      );
       setTimeout(() => {
         port.postMessage({
           type: "PROXY_REGISTER",
@@ -845,7 +885,13 @@ export default function Panel() {
       rpcClient.cleanup();
       port.disconnect();
     };
-  }, [startPolling, stopPolling, reapplyMocks, reapplyProxyOperations, injectChakraHighlighter]);
+  }, [
+    startPolling,
+    stopPolling,
+    reapplyMocks,
+    reapplyProxyOperations,
+    injectChakraHighlighter,
+  ]);
 
   const queries = state.operations.filter((op) => op.type === "query");
   const mutations = state.operations.filter((op) => op.type === "mutation");
@@ -989,50 +1035,69 @@ export default function Panel() {
   }, []);
 
   // Execute a proxy request for an operation
-  const handleProxyRequest = useCallback((operation: GraphQLOperation) => {
-    if (!portRef.current || !proxyTargetTabId) return;
+  const handleProxyRequest = useCallback(
+    (operation: GraphQLOperation) => {
+      if (!portRef.current || !proxyTargetTabId) return;
 
-    const requestId = `${operation.operationName}-${Date.now()}`;
+      const requestId = `${operation.operationName}-${Date.now()}`;
 
-    portRef.current.postMessage({
-      type: "PROXY_REQUEST",
-      payload: {
-        requestId,
-        operationName: operation.operationName,
-        query: operation.query,
-        variables: operation.variables,
-        sourceTabId: chrome.devtools.inspectedWindow.tabId,
-      },
-    });
-  }, [proxyTargetTabId]);
+      portRef.current.postMessage({
+        type: "PROXY_REQUEST",
+        payload: {
+          requestId,
+          operationName: operation.operationName,
+          query: operation.query,
+          variables: operation.variables,
+          sourceTabId: chrome.devtools.inspectedWindow.tabId,
+        },
+      });
+    },
+    [proxyTargetTabId]
+  );
 
   // Toggle proxy for a specific operation (add/remove from proxy set)
-  const handleProxyOperationToggle = useCallback((operationName: string, enabled: boolean) => {
-    if (!rpcClientRef.current) return;
+  const handleProxyOperationToggle = useCallback(
+    (operationName: string, enabled: boolean) => {
+      if (!rpcClientRef.current) return;
 
-    if (enabled) {
-      // Add to proxy set
-      rpcClientRef.current.request("addProxyOperation", { operationName })
-        .then(() => {
-          console.log(`[Leonardo.Ai] Added proxy operation: ${operationName}`);
-          setProxyOperations((prev) => new Set([...prev, operationName]));
-        })
-        .catch((err) => console.error(`[Leonardo.Ai] Failed to add proxy operation:`, err));
-    } else {
-      // Remove from proxy set
-      rpcClientRef.current.request("removeProxyOperation", { operationName })
-        .then(() => {
-          console.log(`[Leonardo.Ai] Removed proxy operation: ${operationName}`);
-          setProxyOperations((prev) => {
-            const next = new Set(prev);
-            next.delete(operationName);
-            return next;
-          });
-          // Keep proxied data - it will be cleared on next request or when proxy is disconnected
-        })
-        .catch((err) => console.error(`[Leonardo.Ai] Failed to remove proxy operation:`, err));
-    }
-  }, []);
+      if (enabled) {
+        // Add to proxy set
+        rpcClientRef.current
+          .request("addProxyOperation", { operationName })
+          .then(() => {
+            console.log(
+              `[Leonardo.Ai] Added proxy operation: ${operationName}`
+            );
+            setProxyOperations((prev) => new Set([...prev, operationName]));
+          })
+          .catch((err) =>
+            console.error(`[Leonardo.Ai] Failed to add proxy operation:`, err)
+          );
+      } else {
+        // Remove from proxy set
+        rpcClientRef.current
+          .request("removeProxyOperation", { operationName })
+          .then(() => {
+            console.log(
+              `[Leonardo.Ai] Removed proxy operation: ${operationName}`
+            );
+            setProxyOperations((prev) => {
+              const next = new Set(prev);
+              next.delete(operationName);
+              return next;
+            });
+            // Keep proxied data - it will be cleared on next request or when proxy is disconnected
+          })
+          .catch((err) =>
+            console.error(
+              `[Leonardo.Ai] Failed to remove proxy operation:`,
+              err
+            )
+          );
+      }
+    },
+    []
+  );
 
   const tabs: { id: TabType; label: string; count?: number }[] = [
     { id: "queries", label: "Queries", count: queries.length },
@@ -1305,8 +1370,12 @@ export default function Panel() {
                     proxyInstances={proxyInstances}
                     proxyTargetTabId={proxyTargetTabId}
                     proxyError={proxyError}
-                    proxiedData={proxiedDataMap[selectedOperation.operationName]}
-                    isProxyEnabled={proxyOperations.has(selectedOperation.operationName)}
+                    proxiedData={
+                      proxiedDataMap[selectedOperation.operationName]
+                    }
+                    isProxyEnabled={proxyOperations.has(
+                      selectedOperation.operationName
+                    )}
                     onProxyRegister={handleProxyRegister}
                     onProxyUnregister={handleProxyUnregister}
                     onProxyRequest={handleProxyRequest}

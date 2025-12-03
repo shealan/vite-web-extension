@@ -1,5 +1,9 @@
 // Background service worker - manages connections between content scripts and devtools
-import type { ProxyInstance, ProxyRequest, ProxyResponse } from "@src/shared/types";
+import type {
+  ProxyInstance,
+  ProxyRequest,
+  ProxyResponse,
+} from "@src/shared/types";
 
 interface DevToolsConnection {
   port: chrome.runtime.Port;
@@ -9,10 +13,7 @@ interface DevToolsConnection {
 }
 
 const devtoolsConnections = new Map<number, DevToolsConnection>();
-const tabData = new Map<
-  number,
-  { apolloDetected: boolean; cache: unknown }
->();
+const tabData = new Map<number, { apolloDetected: boolean; cache: unknown }>();
 
 // Track proxy relationships: sourceTabId -> targetTabId
 const proxyTargets = new Map<number, number>();
@@ -49,7 +50,7 @@ function broadcastProxyInstances() {
 
 // Handle connections from DevTools panels
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== "apollo-lite-devtools") return;
+  if (port.name !== "leonardo-devtools") return;
 
   let tabId: number | null = null;
 
@@ -58,22 +59,25 @@ chrome.runtime.onConnect.addListener((port) => {
       tabId = message.tabId as number;
 
       // Get tab info for proxy instance list
-      chrome.tabs.get(tabId).then((tab) => {
-        devtoolsConnections.set(tabId!, {
-          port,
-          tabId: tabId!,
-          url: tab.url,
-          title: tab.title,
+      chrome.tabs
+        .get(tabId)
+        .then((tab) => {
+          devtoolsConnections.set(tabId!, {
+            port,
+            tabId: tabId!,
+            url: tab.url,
+            title: tab.title,
+          });
+
+          // Broadcast updated instance list to all panels
+          broadcastProxyInstances();
+        })
+        .catch(() => {
+          devtoolsConnections.set(tabId!, { port, tabId: tabId! });
+
+          // Still broadcast even if we couldn't get tab info
+          broadcastProxyInstances();
         });
-
-        // Broadcast updated instance list to all panels
-        broadcastProxyInstances();
-      }).catch(() => {
-        devtoolsConnections.set(tabId!, { port, tabId: tabId! });
-
-        // Still broadcast even if we couldn't get tab info
-        broadcastProxyInstances();
-      });
 
       // Send any cached data for this tab
       const data = tabData.get(tabId);
@@ -94,7 +98,7 @@ chrome.runtime.onConnect.addListener((port) => {
       // Forward RPC request to content script and wait for response
       chrome.tabs
         .sendMessage(tabId, {
-          source: "apollo-lite-devtools-background",
+          source: "leonardo-devtools-background",
           type: "RPC_REQUEST",
           method: message.method,
           params: message.params,
@@ -123,7 +127,7 @@ chrome.runtime.onConnect.addListener((port) => {
     if (message.type === "REQUEST_CACHE" && tabId !== null) {
       chrome.tabs
         .sendMessage(tabId, {
-          source: "apollo-lite-devtools-background",
+          source: "leonardo-devtools-background",
           type: "REQUEST_CACHE",
         })
         .catch(() => {
@@ -161,7 +165,10 @@ chrome.runtime.onConnect.addListener((port) => {
       if (!targetTabId) {
         port.postMessage({
           type: "PROXY_RESPONSE",
-          payload: { requestId, error: "No proxy target configured" } as ProxyResponse,
+          payload: {
+            requestId,
+            error: "No proxy target configured",
+          } as ProxyResponse,
         });
         return;
       }
@@ -172,7 +179,10 @@ chrome.runtime.onConnect.addListener((port) => {
         proxyTargets.delete(tabId);
         port.postMessage({
           type: "PROXY_RESPONSE",
-          payload: { requestId, error: "Proxy target disconnected" } as ProxyResponse,
+          payload: {
+            requestId,
+            error: "Proxy target disconnected",
+          } as ProxyResponse,
         });
         broadcastProxyInstances();
         return;
@@ -184,7 +194,7 @@ chrome.runtime.onConnect.addListener((port) => {
       // Forward the request to the target tab's content script to execute
       chrome.tabs
         .sendMessage(targetTabId, {
-          source: "apollo-lite-devtools-background",
+          source: "leonardo-devtools-background",
           type: "PROXY_REQUEST",
           payload: message.payload,
         })
@@ -199,7 +209,10 @@ chrome.runtime.onConnect.addListener((port) => {
         .catch((error) => {
           port.postMessage({
             type: "PROXY_RESPONSE",
-            payload: { requestId, error: error.message || "Proxy request failed" } as ProxyResponse,
+            payload: {
+              requestId,
+              error: error.message || "Proxy request failed",
+            } as ProxyResponse,
           });
           pendingProxyRequests.delete(requestId);
         });
@@ -235,7 +248,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
 // Handle messages from content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.source !== "apollo-lite-devtools-content") return;
+  if (message.source !== "leonardo-devtools-content") return;
 
   const tabId = sender.tab?.id;
   if (!tabId) return;
@@ -248,7 +261,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!targetTabId) {
       sendResponse({
         requestId: payload?.requestId,
-        error: "No proxy target configured. Please select a target tab in the Proxy Data panel.",
+        error:
+          "No proxy target configured. Please select a target tab in the Proxy Data panel.",
       });
       return true;
     }
@@ -268,7 +282,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Forward the request to the target tab's content script to execute
     chrome.tabs
       .sendMessage(targetTabId, {
-        source: "apollo-lite-devtools-background",
+        source: "leonardo-devtools-background",
         type: "PROXY_REQUEST",
         payload: {
           requestId: payload?.requestId,

@@ -12,6 +12,7 @@ import { json } from "@codemirror/lang-json";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { defaultKeymap } from "@codemirror/commands";
 import { tags } from "@lezer/highlight";
+import { CopyButton as SharedCopyButton } from "@src/shared/CopyButton";
 
 // TextEditor props as expected by json-edit-react
 interface TextEditorProps {
@@ -182,97 +183,17 @@ interface EditableJsonTreeProps {
   noPadding?: boolean;
 }
 
-// CopyButton component for copying JSON data - memoized to prevent re-renders
+// CopyButton wrapper for JSON data - converts data to string for the shared component
 const CopyButton = React.memo(function CopyButton({ data }: { data: unknown }) {
-  const [copied, setCopied] = useState(false);
-  // Memoize stringified data to avoid re-stringifying on every render
-  const textRef = useRef<string>("");
-  const dataRef = useRef<unknown>(data);
-
-  // Only re-stringify if data actually changed
-  if (dataRef.current !== data) {
-    dataRef.current = data;
+  const text = useMemo(() => {
     try {
-      textRef.current = JSON.stringify(data, null, 2);
+      return JSON.stringify(data, null, 2);
     } catch {
-      textRef.current = String(data);
+      return String(data);
     }
-  }
+  }, [data]);
 
-  const handleCopy = useCallback(async () => {
-    const text = textRef.current;
-
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        return;
-      }
-    } catch {
-      // Fall through to fallback
-    }
-
-    // Fallback: use a temporary textarea
-    try {
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      textarea.style.position = "fixed";
-      textarea.style.left = "-9999px";
-      textarea.style.top = "-9999px";
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-
-      const successful = document.execCommand("copy");
-      document.body.removeChild(textarea);
-
-      if (successful) {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  }, []);
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="p-1 hover:bg-[#2d2d4a] rounded transition-colors"
-      title="Copy JSON"
-    >
-      {copied ? (
-        <svg
-          className="w-4 h-4 text-green-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-      ) : (
-        <svg
-          className="w-4 h-4 text-gray-400 hover:text-gray-200"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-          />
-        </svg>
-      )}
-    </button>
-  );
+  return <SharedCopyButton text={text} title="Copy JSON" />;
 });
 
 // Custom icons matching Leonardo.Ai design system (small, gray, subtle)
