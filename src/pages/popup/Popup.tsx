@@ -66,6 +66,23 @@ function CopyableField({ label, value }: { label: string; value: string }) {
 // Leonardo.Ai domain for cookie checks
 const LEONARDO_DOMAIN = "app.leonardo.ai";
 
+// Check if the current tab URL is a supported page
+function isSupportedUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+
+    // Check supported domains
+    if (hostname === "app.leonardo.ai") return true;
+    if (hostname === "github.com" && urlObj.pathname.startsWith("/Leonardo-Interactive")) return true;
+    if (hostname.startsWith("leonardo-platform-git-") && hostname.endsWith(".vercel.app")) return true;
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // Check if user has a valid session cookie
 async function checkSessionCookie(): Promise<boolean> {
   try {
@@ -95,9 +112,30 @@ export default function Popup() {
   const [loading, setLoading] = useState(true);
   const [timestamp, setTimestamp] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSupported, setIsSupported] = useState<boolean | null>(null);
 
   useEffect(() => {
     async function loadUserData() {
+      // First check if we're on a supported page
+      let supported = false; // Default to unsupported
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.url) {
+          supported = isSupportedUrl(tab.url);
+        }
+        // If tab.url is undefined, we don't have permission to read it,
+        // which means it's not a supported page
+      } catch {
+        // If we can't get the tab, it's not supported
+      }
+      setIsSupported(supported);
+
+      // If not supported, skip loading user data
+      if (!supported) {
+        setLoading(false);
+        return;
+      }
+
       const result = await chrome.storage.local.get([
         "leoUserData",
         "leoUserDataTimestamp",
@@ -165,7 +203,7 @@ export default function Popup() {
     return `${days} day${days === 1 ? "" : "s"} ago`;
   };
 
-  if (loading) {
+  if (loading || isSupported === null) {
     return (
       <div className="w-[400px] bg-leo-base text-gray-200 font-sans text-sm">
         <div className="flex flex-col items-center justify-center py-10 px-5 text-gray-400">
@@ -175,6 +213,24 @@ export default function Popup() {
             alt="Leonardo.Ai"
           />
           <p className="mt-3">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSupported === false) {
+    return (
+      <div className="w-[400px] bg-leo-base text-gray-200 font-sans text-sm">
+        <div className="flex items-center justify-center px-4 pt-5 pb-4 bg-leo-elevated border-b border-leo-border">
+          <img src="/logo-text.png" className="h-8" alt="Leonardo.Ai" />
+        </div>
+        <div className="flex flex-col items-center justify-center py-8 px-5 text-center">
+          <h2 className="text-base font-semibold text-gray-200 mb-2">
+            Unsupported page
+          </h2>
+          <p className="text-gray-500 text-xs leading-relaxed">
+            This extension only works on Leonardo.Ai and related development sites.
+          </p>
         </div>
       </div>
     );

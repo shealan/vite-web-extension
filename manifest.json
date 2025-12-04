@@ -13,15 +13,25 @@
     "scripting",
     "storage",
     "cookies",
-    "clipboardWrite"
+    "clipboardWrite",
+    "activeTab"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://app.leonardo.ai/*",
+    "https://github.com/Leonardo-Interactive/*",
+    "https://*.vercel.app/*"
   ],
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://app.leonardo.ai/*",
+        "https://github.com/Leonardo-Interactive/*",
+        "https://*.vercel.app/*"
+      ],
+      "include_globs": [
+        "https://app.leonardo.ai/*",
+        "https://github.com/Leonardo-Interactive/*",
+        "https://leonardo-platform-git-*.vercel.app/*"
       ],
       "js": [
         "src/pages/content/index.ts"
@@ -43,7 +53,9 @@
         "icon-32.png"
       ],
       "matches": [
-        "<all_urls>"
+        "https://app.leonardo.ai/*",
+        "https://github.com/Leonardo-Interactive/*",
+        "https://*.vercel.app/*"
       ]
     }
   ]
