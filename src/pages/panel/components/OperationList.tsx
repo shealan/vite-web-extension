@@ -186,17 +186,28 @@ export function OperationList({
                       <ClockIcon />
                       <span>{formatTime(operation.timestamp)}</span>
                     </span>
-                    {operation.pollInterval != null && operation.pollInterval > 0 && (
-                      <span className="flex items-center gap-1 text-gray-500">
-                        <StopwatchIcon />
-                        <span className="animate-pulse">{formatPollInterval(operation.pollInterval)}</span>
-                      </span>
-                    )}
+                    {operation.pollInterval != null &&
+                      operation.pollInterval > 0 && (
+                        <span className="flex items-center gap-1 text-gray-500">
+                          <StopwatchIcon />
+                          <span className="animate-pulse">
+                            {formatPollInterval(operation.pollInterval)}
+                          </span>
+                        </span>
+                      )}
                   </div>
                   {operation.status === "loading" ? (
                     <span className="text-purple-400">loading...</span>
                   ) : operation.duration ? (
-                    <span>{formatDuration(operation.duration)}</span>
+                    <span>
+                      {operation.responseSize && (
+                        <>
+                          {formatBytes(operation.responseSize)}
+                          <span className="opacity-75"> • </span>
+                        </>
+                      )}
+                      {formatDuration(operation.duration)}
+                    </span>
                   ) : null}
                 </div>
               </button>
@@ -242,4 +253,10 @@ function formatPollInterval(ms: number): string {
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

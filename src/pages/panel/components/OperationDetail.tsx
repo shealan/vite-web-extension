@@ -15,6 +15,102 @@ interface MockFileInfo {
   fileSize: number;
 }
 
+type MockCreateType = "current" | "object" | "array" | "javascript";
+
+interface MockCreateDropdownProps {
+  onSelect: (type: MockCreateType) => void;
+  hasCurrentData: boolean;
+}
+
+// Dropdown component for quickly creating mock data
+function MockCreateDropdown({
+  onSelect,
+  hasCurrentData,
+}: MockCreateDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const options: { type: MockCreateType; label: string; disabled?: boolean }[] =
+    [
+      {
+        type: "current",
+        label: "Use Data",
+        disabled: !hasCurrentData,
+      },
+      { type: "object", label: "JSON object" },
+      { type: "array", label: "JSON array" },
+      { type: "javascript", label: "JavaScript" },
+    ];
+
+  return (
+    <div ref={dropdownRef} className="absolute top-2 right-2 z-10">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-200 border border-leo-border-strong hover:border-purple-500/30 hover:bg-leo-active/50 rounded transition-colors"
+        title="New mock"
+      >
+        <span>New</span>
+        <svg
+          className={cn("w-3 h-3 transition-transform", isOpen && "rotate-180")}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-1 w-44 bg-leo-elevated border border-leo-border rounded-md shadow-lg overflow-hidden">
+          {options.map((option) => (
+            <button
+              key={option.type}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!option.disabled) {
+                  onSelect(option.type);
+                  setIsOpen(false);
+                }
+              }}
+              disabled={option.disabled}
+              className={cn(
+                "w-full px-3 py-2 text-left text-xs transition-colors",
+                option.disabled
+                  ? "text-gray-600 cursor-not-allowed"
+                  : "text-gray-300 hover:bg-leo-active hover:text-white"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Component for rendering headers in a tabular format
 function HeadersTable({ headers }: { headers: Record<string, string> }) {
   const entries = Object.entries(headers);
@@ -65,6 +161,11 @@ interface OperationDetailProps {
   ) => void;
   onMockEnabledChange?: (operationName: string, enabled: boolean) => void;
   autoExpandJson?: boolean;
+  // Network headers from DevTools API (complete, not CORS-restricted)
+  networkHeaders?: {
+    requestHeaders: Record<string, string>;
+    responseHeaders: Record<string, string>;
+  };
   // Proxy props
   proxyInstances?: ProxyInstance[];
   proxyTargetTabId?: number | null;
@@ -166,13 +267,19 @@ interface ResponseTabProps {
   response: GraphQLOperation["response"];
   displayResult: unknown;
   jsonCollapsed: number | boolean;
+  // Complete headers from DevTools network API (not CORS-restricted)
+  networkResponseHeaders?: Record<string, string>;
 }
 
 function ResponseTab({
   response,
   displayResult,
   jsonCollapsed,
+  networkResponseHeaders,
 }: ResponseTabProps) {
+  // Use networkResponseHeaders if available (complete), otherwise fall back to response.headers (CORS-limited)
+  const headers = networkResponseHeaders || response?.headers || {};
+
   if (!response) {
     return (
       <div className="text-gray-500">
@@ -215,7 +322,7 @@ function ResponseTab({
       <div>
         <h3 className="text-xs font-medium text-gray-400 mb-2">Headers</h3>
         <div className="bg-leo-elevated rounded p-3">
-          <HeadersTable headers={response.headers} />
+          <HeadersTable headers={headers} />
         </div>
       </div>
 
@@ -335,11 +442,12 @@ function arePropsEqual(
 function OperationDetailInner({
   operation,
   mockData = "",
-  mockFileInfo,
   mockEnabled = true,
   onMockDataChange,
   onMockEnabledChange,
   autoExpandJson = false,
+  // Network headers from DevTools API
+  networkHeaders,
   // Proxy props
   proxyInstances = [],
   proxyTargetTabId = null,
@@ -359,10 +467,6 @@ function OperationDetailInner({
   const [mockError, setMockError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Use persisted file info, or fall back to null
-  const displayFileName = mockFileInfo?.fileName ?? null;
-  const displayFileSize = mockFileInfo?.fileSize ?? null;
 
   const leftTabs: { id: LeftTab; label: string }[] = [
     { id: "request", label: "Request" },
@@ -527,19 +631,13 @@ function OperationDetailInner({
   const handleJsonEdit = useCallback(
     (updatedData: unknown) => {
       const jsonString = JSON.stringify(updatedData, null, 2);
-      // Update mock data but preserve the file info (mark as "edited" once)
-      const baseFileName =
-        displayFileName?.replace(/ \(edited\)$/, "") || "Inline edit";
       onMockDataChange?.(operation.operationName, jsonString, {
-        fileName:
-          baseFileName === "Inline edit"
-            ? baseFileName
-            : `${baseFileName} (edited)`,
+        fileName: "JSON mock",
         fileSize: jsonString.length,
       });
       setMockError(null);
     },
-    [operation.operationName, onMockDataChange, displayFileName]
+    [operation.operationName, onMockDataChange]
   );
 
   // Handle edits to JS mock script from the editor
@@ -550,18 +648,13 @@ function OperationDetailInner({
         __mockType: "js",
         __mockScript: updatedScript,
       });
-      const baseFileName =
-        displayFileName?.replace(/ \(edited\)$/, "") || "Inline edit";
       onMockDataChange?.(operation.operationName, mockData, {
-        fileName:
-          baseFileName === "Inline edit"
-            ? baseFileName
-            : `${baseFileName} (edited)`,
+        fileName: "JS mock",
         fileSize: updatedScript.length,
       });
       setMockError(null);
     },
-    [operation.operationName, onMockDataChange, displayFileName]
+    [operation.operationName, onMockDataChange]
   );
 
   // Use mock data if valid, otherwise use actual result
@@ -580,7 +673,7 @@ function OperationDetailInner({
         <div className="flex items-start gap-2">
           <span
             className={cn(
-              "px-2 py-0.5 text-xs rounded font-medium mt-0.5",
+              "px-2 py-0.5 text-xs rounded font-medium",
               operation.type === "query" && "bg-blue-500/20 text-blue-400",
               operation.type === "mutation" &&
                 "bg-orange-500/20 text-orange-400",
@@ -649,7 +742,12 @@ function OperationDetailInner({
                           Headers
                         </h3>
                         <div className="bg-leo-elevated rounded p-3">
-                          <HeadersTable headers={operation.request.headers} />
+                          <HeadersTable
+                            headers={
+                              networkHeaders?.requestHeaders ||
+                              operation.request.headers
+                            }
+                          />
                         </div>
                       </div>
 
@@ -881,6 +979,7 @@ function OperationDetailInner({
                   response={operation.response}
                   displayResult={displayResult}
                   jsonCollapsed={jsonCollapsed}
+                  networkResponseHeaders={networkHeaders?.responseHeaders}
                 />
               )}
 
@@ -917,47 +1016,139 @@ function OperationDetailInner({
 
                   {/* File picker with drag & drop - only show when no mock is loaded */}
                   {!hasMockData && (
-                    <div
-                      onClick={openFilePicker}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      className={cn(
-                        "flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer duration-200 transition-colors",
-                        isDragOver
-                          ? "border-purple-500/20"
-                          : "border-leo-border-strong hover:border-purple-500/20 hover:bg-leo-active/50"
-                      )}
-                    >
-                      <svg
+                    <div className="relative">
+                      {/* Quick create dropdown */}
+                      <MockCreateDropdown
+                        onSelect={(type) => {
+                          if (type === "current") {
+                            // Use current operation result as mock data
+                            if (operation.result) {
+                              const jsonString = JSON.stringify(
+                                operation.result,
+                                null,
+                                2
+                              );
+                              onMockDataChange?.(
+                                operation.operationName,
+                                jsonString,
+                                {
+                                  fileName: "Current data",
+                                  fileSize: jsonString.length,
+                                }
+                              );
+                              onMockEnabledChange?.(
+                                operation.operationName,
+                                true
+                              );
+                            }
+                          } else if (type === "object") {
+                            const jsonString = JSON.stringify(
+                              { data: {} },
+                              null,
+                              2
+                            );
+                            onMockDataChange?.(
+                              operation.operationName,
+                              jsonString,
+                              {
+                                fileName: "New object",
+                                fileSize: jsonString.length,
+                              }
+                            );
+                            onMockEnabledChange?.(
+                              operation.operationName,
+                              true
+                            );
+                          } else if (type === "array") {
+                            const jsonString = JSON.stringify(
+                              { data: [] },
+                              null,
+                              2
+                            );
+                            onMockDataChange?.(
+                              operation.operationName,
+                              jsonString,
+                              {
+                                fileName: "New array",
+                                fileSize: jsonString.length,
+                              }
+                            );
+                            onMockEnabledChange?.(
+                              operation.operationName,
+                              true
+                            );
+                          } else if (type === "javascript") {
+                            const scriptTemplate = `// Mock function for ${operation.operationName}
+// Available variables: variables, operationName, request
+// Return the mock data object
+
+return {
+  data: {
+    // Your mock data here
+  }
+};`;
+                            const mockData = JSON.stringify({
+                              __mockType: "js",
+                              __mockScript: scriptTemplate,
+                            });
+                            onMockDataChange?.(
+                              operation.operationName,
+                              mockData,
+                              {
+                                fileName: "New script",
+                                fileSize: scriptTemplate.length,
+                              }
+                            );
+                            onMockEnabledChange?.(
+                              operation.operationName,
+                              true
+                            );
+                          }
+                        }}
+                        hasCurrentData={!!operation.result}
+                      />
+                      <div
+                        onClick={openFilePicker}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
                         className={cn(
-                          "w-6 h-6 mb-2",
-                          isDragOver ? "text-purple-400" : "text-gray-500"
-                        )}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                        />
-                      </svg>
-                      <span
-                        className={cn(
-                          "text-sm",
-                          isDragOver ? "text-purple-300" : "text-gray-400"
+                          "flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer duration-200 transition-colors",
+                          isDragOver
+                            ? "border-purple-500/20"
+                            : "border-leo-border-strong hover:border-purple-500/20 hover:bg-leo-active/50"
                         )}
                       >
-                        {isDragOver
-                          ? "Drop mock result data file"
-                          : "Select mock result data file"}
-                      </span>
-                      <span className="text-xs text-gray-600 mt-1">
-                        .json or .js files
-                      </span>
+                        <svg
+                          className={cn(
+                            "w-6 h-6 mb-2",
+                            isDragOver ? "text-purple-400" : "text-gray-500"
+                          )}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        <span
+                          className={cn(
+                            "text-sm",
+                            isDragOver ? "text-purple-300" : "text-gray-400"
+                          )}
+                        >
+                          {isDragOver
+                            ? "Drop mock result data file"
+                            : "Select mock result data file"}
+                        </span>
+                        <span className="text-xs text-gray-600 mt-1">
+                          .json or .js files
+                        </span>
+                      </div>
                     </div>
                   )}
 
@@ -1116,7 +1307,7 @@ function OperationDetailInner({
                                   : "text-gray-500"
                               )}
                             >
-                              {displayFileName || "Mock Data"}
+                              {operation.operationName} Mock (JSON)
                             </p>
                             <p
                               className={cn(
@@ -1126,9 +1317,7 @@ function OperationDetailInner({
                                   : "text-gray-500"
                               )}
                             >
-                              {displayFileSize !== null &&
-                                formatFileSize(displayFileSize)}{" "}
-                              — Click values to edit
+                              Click values to edit
                             </p>
                           </div>
                         </div>
@@ -1295,7 +1484,7 @@ function OperationDetailInner({
                                   : "text-gray-500"
                               )}
                             >
-                              {displayFileName}
+                              {operation.operationName} Mock (JS)
                             </p>
                             <p
                               className={cn(
@@ -1305,9 +1494,7 @@ function OperationDetailInner({
                                   : "text-gray-500"
                               )}
                             >
-                              {displayFileSize !== null &&
-                                formatFileSize(displayFileSize)}{" "}
-                              — Script executes on each request
+                              Script executes on each request
                             </p>
                           </div>
                         </div>
@@ -1771,17 +1958,6 @@ function OperationDetailInner({
       </PanelGroup>
     </div>
   );
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms} ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
 }
 
 function stripTrailingSlash(url: string): string {

@@ -140,6 +140,7 @@ function convertToOperations(
       cachedData: q.cachedData,
       request: q.lastRequest,
       response: q.lastResponseInfo,
+      responseSize: q.lastResponseSize,
       options: q.options,
       pollInterval: q.pollInterval,
       timestamp: q.lastResponseTimestamp ?? Date.now(),
@@ -160,6 +161,7 @@ function convertToOperations(
       result: m.lastResponse,
       request: m.lastRequest,
       response: m.lastResponseInfo,
+      responseSize: m.lastResponseSize,
       error: m.error
         ? String((m.error as { message?: string })?.message || m.error)
         : undefined,
@@ -237,6 +239,8 @@ export default function Panel() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showApolloBadge, setShowApolloBadge] = useState(true);
+  const [minLoadingComplete, setMinLoadingComplete] = useState(false);
 
   // Proxy state
   const [proxyInstances, setProxyInstances] = useState<ProxyInstance[]>([]);
@@ -250,6 +254,16 @@ export default function Panel() {
   const [proxyOperations, setProxyOperations] = useState<Set<string>>(
     new Set()
   );
+  // Track complete network headers captured from DevTools network API (keyed by operation name)
+  const [networkHeadersMap, setNetworkHeadersMap] = useState<
+    Record<
+      string,
+      {
+        requestHeaders: Record<string, string>;
+        responseHeaders: Record<string, string>;
+      }
+    >
+  >({});
 
   const portRef = useRef<chrome.runtime.Port | null>(null);
   const rpcClientRef = useRef<ReturnType<typeof createRpcClient> | null>(null);
@@ -533,6 +547,25 @@ export default function Panel() {
     if (!isInitialized) return;
     injectChakraHighlighter(settings.highlightChakra);
   }, [settings.highlightChakra, isInitialized, injectChakraHighlighter]);
+
+  // Show spinner for at least 500ms on initial load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinLoadingComplete(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Hide Apollo badge 2 seconds after showing connected state
+  // Once hidden, it stays hidden
+  useEffect(() => {
+    if (state.isConnected && minLoadingComplete && showApolloBadge) {
+      const timer = setTimeout(() => {
+        setShowApolloBadge(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [state.isConnected, minLoadingComplete, showApolloBadge]);
 
   // Enable/disable proxy mode when proxy target and connection state changes
   // This ensures we only send setProxyEnabled RPC when content script is ready
@@ -836,6 +869,22 @@ export default function Panel() {
             `[Leonardo.Ai] Proxy target tab ${message.payload?.targetTabId} was refreshed`
           );
           break;
+
+        case "NETWORK_HEADERS":
+          // Handle network headers from DevTools network API (relayed via background)
+          if (message.payload) {
+            const { operationName, requestHeaders, responseHeaders } =
+              message.payload as {
+                operationName: string;
+                requestHeaders: Record<string, string>;
+                responseHeaders: Record<string, string>;
+              };
+            setNetworkHeadersMap((prev) => ({
+              ...prev,
+              [operationName]: { requestHeaders, responseHeaders },
+            }));
+          }
+          break;
       }
     });
 
@@ -1121,15 +1170,19 @@ export default function Panel() {
           </div>
           <span
             className={cn(
-              "px-2 py-0.5 text-xs rounded-full flex items-center gap-0.5",
-              state.isConnected
+              "px-2 py-0.5 text-xs rounded-full flex items-center gap-1 transition-opacity duration-500",
+              state.isConnected && minLoadingComplete
                 ? "bg-green-500/20 text-green-400"
-                : "bg-gray-500/20 text-gray-400 animate-pulse"
+                : "bg-gray-500/20 text-gray-400",
+              !showApolloBadge && "opacity-0 pointer-events-none"
             )}
+            title={
+              state.isConnected && minLoadingComplete ? "Apollo connected" : "Waiting for Apollo..."
+            }
           >
-            {state.isConnected ? (
+            {state.isConnected && minLoadingComplete ? (
               <svg
-                className="size-3 relative -left-px"
+                className="size-3"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1143,16 +1196,22 @@ export default function Panel() {
               </svg>
             ) : (
               <svg
-                className="size-3 relative -left-px"
+                className="size-3 animate-spin"
                 fill="none"
-                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
                 <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
             )}
@@ -1366,6 +1425,10 @@ export default function Panel() {
                     onMockDataChange={handleMockDataChange}
                     onMockEnabledChange={handleMockEnabledChange}
                     autoExpandJson={settings.autoExpandJson}
+                    // Network headers from DevTools API (complete, not CORS-restricted)
+                    networkHeaders={
+                      networkHeadersMap[selectedOperation.operationName]
+                    }
                     // Proxy props
                     proxyInstances={proxyInstances}
                     proxyTargetTabId={proxyTargetTabId}

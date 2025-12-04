@@ -246,8 +246,22 @@ chrome.runtime.onConnect.addListener((port) => {
   });
 });
 
-// Handle messages from content scripts
+// Handle messages from content scripts and devtools pages
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle network headers from devtools page - relay to the panel
+  if (message.source === "leonardo-devtools-network" && message.type === "NETWORK_HEADERS") {
+    // Find all connected panels and forward the message
+    // The devtools page doesn't have a tab ID, so we broadcast to all panels
+    // Each panel will filter by operation name
+    for (const [, conn] of devtoolsConnections) {
+      conn.port.postMessage({
+        type: "NETWORK_HEADERS",
+        payload: message.payload,
+      });
+    }
+    return;
+  }
+
   if (message.source !== "leonardo-devtools-content") return;
 
   const tabId = sender.tab?.id;
@@ -337,6 +351,8 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 // Track tab URLs for navigation detection
 const tabUrls = new Map<number, string>();
+// Track when we last sent TAB_NAVIGATED to debounce multiple loading events
+const lastNavigationTime = new Map<number, number>();
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // Detect page refresh/navigation when status changes to "loading"
@@ -351,6 +367,15 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     // Only process if we have a DevTools connection for this tab
     const connection = devtoolsConnections.get(tabId);
     if (connection) {
+      // Debounce: Only send TAB_NAVIGATED if we haven't sent one recently (within 1 second)
+      const now = Date.now();
+      const lastNav = lastNavigationTime.get(tabId) || 0;
+      if (now - lastNav < 1000) {
+        // Skip this loading event - we already handled a recent one
+        return;
+      }
+      lastNavigationTime.set(tabId, now);
+
       // Reset Apollo detection state - the page is reloading
       tabData.set(tabId, {
         apolloDetected: false,
@@ -390,7 +415,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-// Clean up URL tracking when tab is closed
+// Clean up URL and navigation tracking when tab is closed
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabUrls.delete(tabId);
+  lastNavigationTime.delete(tabId);
 });

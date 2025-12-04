@@ -627,6 +627,7 @@
                 ? lastResponse.timestamp
                 : null,
               lastResponseDuration: lastResponse ? lastResponse.duration : null,
+              lastResponseSize: lastResponse ? lastResponse.responseSize : null,
               // Include request info for debugging
               lastRequest: lastResponse ? lastResponse.request : null,
               // Include response info (status, headers)
@@ -698,6 +699,7 @@
             lastResponse: lastResponse ? lastResponse.data : null,
             lastResponseTimestamp: lastResponse ? lastResponse.timestamp : null,
             lastResponseDuration: lastResponse ? lastResponse.duration : null,
+            lastResponseSize: lastResponse ? lastResponse.responseSize : null,
             // Include request info for debugging
             lastRequest: lastResponse ? lastResponse.request : null,
             // Include response info (status, headers)
@@ -1031,9 +1033,18 @@
         };
 
         clonedResponse
-          .json()
-          .then(function (data) {
+          .text()
+          .then(function (text) {
+            var data;
+            try {
+              data = JSON.parse(text);
+            } catch (e) {
+              return; // Not JSON, ignore
+            }
             if (operationName && data) {
+              // Calculate response size from text length (bytes)
+              var responseSize = new Blob([text]).size;
+
               // Store the response for this operation
               lastResponses.set(operationName, {
                 data: data,
@@ -1042,6 +1053,7 @@
                 variables: variables,
                 request: requestInfo,
                 response: responseInfo,
+                responseSize: responseSize,
               });
 
               // Keep map size bounded

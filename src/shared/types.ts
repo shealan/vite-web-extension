@@ -21,6 +21,7 @@ export interface GraphQLOperation {
   cachedData?: unknown; // The merged/paginated cached data from Apollo Client
   request?: RequestInfo; // The HTTP request info for debugging
   response?: ResponseInfo; // The HTTP response info for debugging
+  responseSize?: number; // Size of the response body in bytes
   options?: QueryOptions | null; // Apollo query options/policy
   pollInterval?: number | null; // Polling interval in ms (if query is polling)
   error?: string;
@@ -119,6 +120,7 @@ export interface RawWatchedQuery {
   lastResponse?: unknown; // Actual network response captured from fetch
   lastResponseTimestamp?: number;
   lastResponseDuration?: number; // Duration of the last network request in ms
+  lastResponseSize?: number; // Size of the last response in bytes
   lastRequest?: RequestInfo; // HTTP request info for debugging
   lastResponseInfo?: ResponseInfo; // HTTP response info for debugging
   isProxied?: boolean; // Flag indicating if this response was proxied from another tab
@@ -138,6 +140,7 @@ export interface RawMutation {
   lastResponse?: unknown; // Actual network response captured from fetch
   lastResponseTimestamp?: number;
   lastResponseDuration?: number; // Duration of the last network request in ms
+  lastResponseSize?: number; // Size of the last response in bytes
   lastRequest?: RequestInfo; // HTTP request info for debugging
   lastResponseInfo?: ResponseInfo; // HTTP response info for debugging
 }
