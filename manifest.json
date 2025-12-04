@@ -19,19 +19,22 @@
   "host_permissions": [
     "https://app.leonardo.ai/*",
     "https://github.com/Leonardo-Interactive/*",
-    "https://*.vercel.app/*"
+    "https://*.vercel.app/*",
+    "http://localhost/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://app.leonardo.ai/*",
         "https://github.com/Leonardo-Interactive/*",
-        "https://*.vercel.app/*"
+        "https://*.vercel.app/*",
+        "http://localhost/*"
       ],
       "include_globs": [
         "https://app.leonardo.ai/*",
         "https://github.com/Leonardo-Interactive/*",
-        "https://leonardo-platform-git-*.vercel.app/*"
+        "https://leonardo-platform-git-*.vercel.app/*",
+        "http://localhost/*"
       ],
       "js": [
         "src/pages/content/index.ts"
@@ -55,7 +58,8 @@
       "matches": [
         "https://app.leonardo.ai/*",
         "https://github.com/Leonardo-Interactive/*",
-        "https://*.vercel.app/*"
+        "https://*.vercel.app/*",
+        "http://localhost/*"
       ]
     }
   ]
