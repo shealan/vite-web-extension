@@ -131,7 +131,7 @@ function TruncatedToken({ value }: { value: string }) {
         onClick={() => setExpanded(!expanded)}
         className="ml-2 text-purple-400 hover:text-purple-300 text-xs"
       >
-        {expanded ? "Hide" : "Reveal"}
+        {expanded ? "Hide" : "Show"}
       </button>
     </span>
   );
