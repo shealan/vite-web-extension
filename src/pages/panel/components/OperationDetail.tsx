@@ -111,6 +111,32 @@ function MockCreateDropdown({
   );
 }
 
+// Component for truncating long tokens (like Bearer tokens) with expand/collapse
+function TruncatedToken({ value }: { value: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Calculate if truncation is needed (roughly 6 lines worth of characters)
+  // Assuming ~60 chars per line in the typical panel width
+  const maxChars = 260;
+  const needsTruncation = value.length > maxChars;
+
+  if (!needsTruncation) {
+    return <span>{value}</span>;
+  }
+
+  return (
+    <span>
+      {expanded ? value : `${value.slice(0, maxChars)}...`}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="ml-2 text-purple-400 hover:text-purple-300 text-xs"
+      >
+        {expanded ? "Hide" : "Reveal"}
+      </button>
+    </span>
+  );
+}
+
 // Component for rendering headers in a tabular format
 function HeadersTable({ headers }: { headers: Record<string, string> }) {
   const entries = Object.entries(headers);
@@ -140,7 +166,11 @@ function HeadersTable({ headers }: { headers: Record<string, string> }) {
               {key}:
             </td>
             <td className="text-gray-300 font-mono break-all align-top py-0.5">
-              {value}
+              {key.toLowerCase() === "authorization" ? (
+                <TruncatedToken value={value} />
+              ) : (
+                value
+              )}
             </td>
           </tr>
         ))}
