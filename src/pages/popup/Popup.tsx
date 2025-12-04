@@ -66,15 +66,15 @@ function CopyableField({ label, value }: { label: string; value: string }) {
 // Leonardo.Ai domain for cookie checks
 const LEONARDO_DOMAIN = "app.leonardo.ai";
 
-// Check if the current tab URL is a supported page
+// Check if the current tab URL is a supported page for showing user data
+// Only Leonardo.ai and Vercel preview pages - not GitHub
 function isSupportedUrl(url: string): boolean {
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;
 
-    // Check supported domains
+    // Check supported domains (Leonardo.ai and Vercel previews only)
     if (hostname === "app.leonardo.ai") return true;
-    if (hostname === "github.com" && urlObj.pathname.startsWith("/Leonardo-Interactive")) return true;
     if (hostname.startsWith("leonardo-platform-git-") && hostname.endsWith(".vercel.app")) return true;
 
     return false;
