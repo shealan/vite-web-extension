@@ -34,7 +34,8 @@
         "https://app.leonardo.ai/*",
         "https://github.com/Leonardo-Interactive/*",
         "https://leonardo-platform-git-*.vercel.app/*",
-        "http://localhost/*"
+        "http://localhost/*",
+        "http://localhost:*/*"
       ],
       "js": [
         "src/pages/content/index.ts"
