@@ -450,13 +450,67 @@ export default function Panel() {
           return null;
         }
 
+        // Check if element has a chakra class
+        function hasChakraClass(el) {
+          if (!el || !el.classList || el === document.body) return false;
+          return [...el.classList].some(cls => cls.startsWith('chakra-'));
+        }
+
+        // Find the closest chakra ancestor (excluding body)
+        function findClosestChakra(el) {
+          if (!el || !el.closest) return null;
+          const closest = el.closest('[class*="chakra-"]');
+          if (closest && closest !== document.body) {
+            return closest;
+          }
+          return null;
+        }
+
+        // Check if element should show the tooltip:
+        // - Element itself is a chakra element, OR
+        // - Element is a direct child of a chakra element
+        function shouldShowTooltip(el) {
+          if (!el || el === document.body) return false;
+          // If element itself has chakra class, show tooltip
+          if (hasChakraClass(el)) return true;
+          // If parent is a chakra element, show tooltip (direct child)
+          if (el.parentElement && hasChakraClass(el.parentElement)) return true;
+          return false;
+        }
+
+        // Get the chakra element to display info for
+        function getChakraElementForDisplay(el) {
+          if (!el || el === document.body) return null;
+          // If the element itself is a chakra element, return it
+          if (hasChakraClass(el)) return el;
+          // If parent is a chakra element, return parent
+          if (el.parentElement && hasChakraClass(el.parentElement)) {
+            return el.parentElement;
+          }
+          return null;
+        }
+
         // Mouse over handler
         function handleMouseOver(e) {
-          const el = e.target.closest('[class*="chakra-"]');
-          if (!el || el === currentEl) return;
+          const target = e.target;
+          // Show tooltip if target is a chakra element or direct child of one
+          if (!shouldShowTooltip(target)) {
+            // Mouse moved to a deeper nested non-chakra element, hide tooltip
+            if (currentEl) {
+              currentEl = null;
+              tooltip.style.display = 'none';
+            }
+            return;
+          }
 
-          currentEl = el;
-          const type = getChakraType(el);
+          // Get the chakra element to display info for
+          const displayEl = getChakraElementForDisplay(target);
+          if (!displayEl) return;
+
+          if (displayEl === currentEl) return;
+
+          currentEl = displayEl;
+          const type = getChakraType(displayEl);
           const color = type ? colorMap[type] : '#9ca3af';
           const displayName = type ? 'Chakra ' + type.charAt(0).toUpperCase() + type.slice(1) : 'Chakra';
 
@@ -467,19 +521,20 @@ export default function Panel() {
           tooltip.style.top = (e.clientY + 12) + 'px';
         }
 
-        // Mouse out handler
+        // Mouse out handler - hide tooltip when leaving the document or moving to non-chakra element
         function handleMouseOut(e) {
-          const el = e.target.closest('[class*="chakra-"]');
-          if (!el) return;
-
-          // Check if we're moving to another chakra element
-          const relatedTarget = e.relatedTarget;
-          if (relatedTarget && relatedTarget.closest && relatedTarget.closest('[class*="chakra-"]')) {
+          // If relatedTarget is null, we're leaving the document
+          if (!e.relatedTarget) {
+            currentEl = null;
+            tooltip.style.display = 'none';
             return;
           }
 
-          currentEl = null;
-          tooltip.style.display = 'none';
+          // Check if we're moving to an element that should show tooltip
+          if (!shouldShowTooltip(e.relatedTarget)) {
+            currentEl = null;
+            tooltip.style.display = 'none';
+          }
         }
 
         // Store handlers on window for cleanup
@@ -490,8 +545,9 @@ export default function Panel() {
         document.addEventListener('mouseover', handleMouseOver);
         document.addEventListener('mouseout', handleMouseOut);
 
-        // Apply outlines to all chakra elements
+        // Apply outlines to all chakra elements (except body)
         document.querySelectorAll('[class*="chakra-"]').forEach(el => {
+          if (el === document.body) return; // Skip body element
           const type = getChakraType(el);
           const color = type ? colorMap[type] : '#9ca3af';
           el.style.outline = '2px solid ' + color;
