@@ -9,6 +9,7 @@ import { cn } from "@src/shared/cn";
 import { EditableJsonTree } from "./EditableJsonTree";
 import { GraphQLHighlight } from "./GraphQLHighlight";
 import { JavaScriptEditor } from "./JavaScriptEditor";
+import { CopyButton } from "@src/shared/CopyButton";
 
 interface MockFileInfo {
   fileName: string;
@@ -254,6 +255,8 @@ interface ResultTabProps {
   operation: GraphQLOperation;
   parsedMockData: unknown;
   jsonCollapsed: number | boolean;
+  isProxyEnabled?: boolean;
+  hasProxiedData?: boolean;
 }
 
 function ResultTab({
@@ -264,17 +267,31 @@ function ResultTab({
   operation,
   parsedMockData,
   jsonCollapsed,
+  isProxyEnabled,
+  hasProxiedData,
 }: ResultTabProps) {
   return (
     <div className="json-tree w-full">
       {/* Warning banners - full width, above everything */}
       {hasMockData && mockEnabled && (
         <div className="font-sans mb-4 p-3 bg-purple-500/10 border-purple-500/30 border rounded">
-          <h3 className="text-sm font-bold text-purple-400">Mocked Response</h3>
-          <p className="text-xs mt-1 text-purple-300">
+          <h3 className="text-sm font-medium text-purple-400">
+            Mocked Response
+          </h3>
+          <p className="text-xs mt-0.5 text-purple-300">
             {mockType === "js"
               ? "Script executes on each request - result shown is from last execution"
               : "This result is overridden by mock data"}
+          </p>
+        </div>
+      )}
+      {isProxyEnabled && hasProxiedData && (
+        <div className="font-sans mb-4 p-3 bg-orange-500/10 border-orange-500/30 border rounded">
+          <h3 className="text-sm font-medium text-orange-400">
+            Proxied Response
+          </h3>
+          <p className="text-xs mt-0.5 text-orange-300">
+            This result was fetched from the proxy target tab
           </p>
         </div>
       )}
@@ -853,7 +870,14 @@ function OperationDetailInner({
               )}
 
               {leftTab === "query" && (
-                <GraphQLHighlight query={operation.query} />
+                <div className="relative">
+                  <div className="absolute top-2 right-2 z-10">
+                    <CopyButton text={operation.query} title="Copy query" />
+                  </div>
+                  <div className="pr-10">
+                    <GraphQLHighlight query={operation.query} />
+                  </div>
+                </div>
               )}
 
               {leftTab === "variables" && (
@@ -1024,7 +1048,7 @@ function OperationDetailInner({
                         <span className="size-2 rounded-full bg-purple-400 mb-px" />
                       )}
                       {tab.id === "proxy" && isProxyActive && (
-                        <span className="size-2 rounded-full bg-orange-400 mb-px" />
+                        <span className="size-2 rounded-full bg-purple-400 mb-px" />
                       )}
                       {tab.label}
                     </span>
@@ -1053,6 +1077,8 @@ function OperationDetailInner({
                   operation={operation}
                   parsedMockData={parsedMockData}
                   jsonCollapsed={jsonCollapsed}
+                  isProxyEnabled={isProxyEnabled}
+                  hasProxiedData={proxiedData !== undefined}
                 />
               )}
 
