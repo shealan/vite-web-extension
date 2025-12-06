@@ -1275,35 +1275,6 @@ return {
                             )}
                           </button>
                           <button
-                            onClick={reloadFile}
-                            className={cn(
-                              "p-1 rounded transition-colors",
-                              mockEnabled
-                                ? "hover:bg-purple-500/20"
-                                : "hover:bg-gray-500/20"
-                            )}
-                            title="Load different file"
-                          >
-                            <svg
-                              className={cn(
-                                "w-4 h-4",
-                                mockEnabled
-                                  ? "text-purple-400 hover:text-purple-300"
-                                  : "text-gray-500 hover:text-gray-300"
-                              )}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                              />
-                            </svg>
-                          </button>
-                          <button
                             onClick={clearMock}
                             className={cn(
                               "p-1 rounded transition-colors",
@@ -1452,35 +1423,6 @@ return {
                             )}
                           </button>
                           <button
-                            onClick={reloadFile}
-                            className={cn(
-                              "p-1 rounded transition-colors",
-                              mockEnabled
-                                ? "hover:bg-purple-500/20"
-                                : "hover:bg-gray-500/20"
-                            )}
-                            title="Load different file"
-                          >
-                            <svg
-                              className={cn(
-                                "w-4 h-4",
-                                mockEnabled
-                                  ? "text-purple-400 hover:text-purple-300"
-                                  : "text-gray-500 hover:text-gray-300"
-                              )}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                              />
-                            </svg>
-                          </button>
-                          <button
                             onClick={clearMock}
                             className={cn(
                               "p-1 rounded transition-colors",
@@ -1601,11 +1543,30 @@ return {
                               stroke="currentColor"
                               viewBox="0 0 24 24"
                             >
+                              <rect
+                                x="3"
+                                y="4"
+                                width="18"
+                                height="16"
+                                rx="2"
+                                strokeWidth={2}
+                              />
                               <path
                                 strokeLinecap="round"
-                                strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                d="M3 9h18"
+                              />
+                              <circle
+                                cx="6"
+                                cy="6.5"
+                                r="1"
+                                fill="currentColor"
+                              />
+                              <circle
+                                cx="9"
+                                cy="6.5"
+                                r="1"
+                                fill="currentColor"
                               />
                             </svg>
                             <div className="flex-1 min-w-0">
@@ -1708,11 +1669,30 @@ return {
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
                               >
+                                <rect
+                                  x="3"
+                                  y="4"
+                                  width="18"
+                                  height="16"
+                                  rx="2"
+                                  strokeWidth={2}
+                                />
                                 <path
                                   strokeLinecap="round"
-                                  strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                  d="M3 9h18"
+                                />
+                                <circle
+                                  cx="6"
+                                  cy="6.5"
+                                  r="1"
+                                  fill="currentColor"
+                                />
+                                <circle
+                                  cx="9"
+                                  cy="6.5"
+                                  r="1"
+                                  fill="currentColor"
                                 />
                               </svg>
                               <div className="flex-1 min-w-0">
@@ -1720,8 +1700,7 @@ return {
                                   {stripTrailingSlash(instance.url)}
                                 </p>
                                 <p className="text-xs mt-0.5 truncate text-gray-500">
-                                  Proxy {operation.operationName} requests via
-                                  tab {instance.tabId}
+                                  Proxy operation via tab: {instance.tabId}
                                 </p>
                               </div>
                             </div>
@@ -1818,7 +1797,7 @@ return {
                             )}
                             title={
                               isProxyEnabled
-                                ? "Execute proxy request"
+                                ? "Execute manual proxy request"
                                 : "Enable auto-proxy to execute requests"
                             }
                           >
@@ -1885,12 +1864,21 @@ return {
                             stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
+                            <rect
+                              x="3"
+                              y="4"
+                              width="18"
+                              height="16"
+                              rx="2"
+                              strokeWidth={2}
+                            />
                             <path
                               strokeLinecap="round"
-                              strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              d="M3 9h18"
                             />
+                            <circle cx="6" cy="6.5" r="1" fill="currentColor" />
+                            <circle cx="9" cy="6.5" r="1" fill="currentColor" />
                           </svg>
                           <div className="flex-1 min-w-0">
                             <p
@@ -1915,8 +1903,7 @@ return {
                                   : "text-gray-500"
                               )}
                             >
-                              Proxy {operation.operationName} data via tab{" "}
-                              {proxyTargetTabId}
+                              Proxy operation via tab: {proxyTargetTabId}
                             </p>
                           </div>
                         </div>
