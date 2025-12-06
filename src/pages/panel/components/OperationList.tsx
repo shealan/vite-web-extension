@@ -142,7 +142,7 @@ export function OperationList({
       {/* Operations List */}
       <div className="flex-1 overflow-y-auto">
         {operations.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500 text-sm p-4">
+          <div className="flex items-center justify-center h-full text-gray-600 text-sm p-4">
             No operations recorded yet
           </div>
         ) : filteredOperations.length === 0 ? (

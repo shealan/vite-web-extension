@@ -1177,7 +1177,9 @@ export default function Panel() {
               !showApolloBadge && "opacity-0 pointer-events-none"
             )}
             title={
-              state.isConnected && minLoadingComplete ? "Apollo connected" : "Waiting for Apollo..."
+              state.isConnected && minLoadingComplete
+                ? "Apollo connected"
+                : "Waiting for Apollo..."
             }
           >
             {state.isConnected && minLoadingComplete ? (
@@ -1448,7 +1450,9 @@ export default function Panel() {
                   <div className="flex items-center justify-center h-full text-gray-500">
                     <div className="flex flex-col items-center gap-3">
                       <Logo className="size-16 text-white/15" />
-                      Select an operation to view details
+                      <div className="text-sm text-gray-600">
+                        Select an operation to view details
+                      </div>
                     </div>
                   </div>
                 )}

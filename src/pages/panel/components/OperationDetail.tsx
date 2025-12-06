@@ -48,7 +48,7 @@ function MockCreateDropdown({
     [
       {
         type: "current",
-        label: "Use Data",
+        label: "From Response",
         disabled: !hasCurrentData,
       },
       { type: "object", label: "JSON object" },
@@ -66,7 +66,7 @@ function MockCreateDropdown({
         className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-200 border border-leo-border-strong hover:border-purple-500/30 hover:bg-leo-active/50 rounded transition-colors"
         title="New mock"
       >
-        <span>New</span>
+        <span>Create</span>
         <svg
           className={cn("w-3 h-3 transition-transform", isOpen && "rotate-180")}
           fill="none"
@@ -117,7 +117,7 @@ function TruncatedToken({ value }: { value: string }) {
 
   // Calculate if truncation is needed (roughly 6 lines worth of characters)
   // Assuming ~60 chars per line in the typical panel width
-  const maxChars = 260;
+  const maxChars = 220;
   const needsTruncation = value.length > maxChars;
 
   if (!needsTruncation) {
@@ -131,15 +131,25 @@ function TruncatedToken({ value }: { value: string }) {
         onClick={() => setExpanded(!expanded)}
         className="ml-2 text-purple-400 hover:text-purple-300 text-xs"
       >
-        {expanded ? "Hide" : "Show"}
+        {expanded ? "Collapse" : "Expand"}
       </button>
     </span>
   );
 }
 
-// Component for rendering headers in a tabular format
-function HeadersTable({ headers }: { headers: Record<string, string> }) {
+// Component for rendering headers in a tabular format with expand/collapse
+function HeadersTable({
+  headers,
+  label = "Headers",
+}: {
+  headers: Record<string, string>;
+  label?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
   const entries = Object.entries(headers);
+  const defaultLimit = 6;
+  const needsExpansion = entries.length > defaultLimit;
+  const displayedEntries = expanded ? entries : entries.slice(0, defaultLimit);
 
   // Calculate the width needed for the longest header name
   const maxKeyLength = useMemo(() => {
@@ -151,31 +161,55 @@ function HeadersTable({ headers }: { headers: Record<string, string> }) {
   const keyColumnWidth = `${maxKeyLength + 1}ch`;
 
   if (entries.length === 0) {
-    return <span className="text-gray-500 text-xs">No headers captured</span>;
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-medium text-gray-400">{label} (0)</h3>
+        </div>
+        <span className="text-gray-500 text-xs">No headers captured</span>
+      </div>
+    );
   }
 
   return (
-    <table className="w-full text-xs">
-      <tbody>
-        {entries.map(([key, value]) => (
-          <tr key={key}>
-            <td
-              className="text-purple-400 font-medium align-top py-0.5 pr-2"
-              style={{ width: keyColumnWidth }}
-            >
-              {key}:
-            </td>
-            <td className="text-gray-300 font-mono break-all align-top py-0.5">
-              {key.toLowerCase() === "authorization" ? (
-                <TruncatedToken value={value} />
-              ) : (
-                value
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-medium text-gray-400">
+          {label} <span className="text-gray-500">({entries.length})</span>
+        </h3>
+        {needsExpansion && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+          >
+            {expanded ? "Collapse" : "Expand"}
+          </button>
+        )}
+      </div>
+      <div className="bg-leo-elevated rounded p-3">
+        <table className="w-full text-xs">
+          <tbody>
+            {displayedEntries.map(([key, value]) => (
+              <tr key={key}>
+                <td
+                  className="text-purple-400 font-medium align-top py-0.5 pr-2"
+                  style={{ width: keyColumnWidth }}
+                >
+                  {key}:
+                </td>
+                <td className="text-gray-300 font-mono break-all align-top py-0.5">
+                  {key.toLowerCase() === "authorization" ? (
+                    <TruncatedToken value={value} />
+                  ) : (
+                    value
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
@@ -349,12 +383,7 @@ function ResponseTab({
       </div>
 
       {/* Headers */}
-      <div>
-        <h3 className="text-xs font-medium text-gray-400 mb-2">Headers</h3>
-        <div className="bg-leo-elevated rounded p-3">
-          <HeadersTable headers={headers} />
-        </div>
-      </div>
+      <HeadersTable headers={headers} />
 
       {/* Body */}
       <div>
@@ -508,7 +537,7 @@ function OperationDetailInner({
   const rightTabs: { id: RightTab; label: string }[] = [
     { id: "response", label: "Response" },
     { id: "result", label: "Data" },
-    { id: "cache", label: "Cache Data" },
+    { id: "cache", label: "Cached Data" },
     { id: "mock", label: "Mock Data" },
     { id: "proxy", label: "Proxy Data" },
   ];
@@ -767,19 +796,12 @@ function OperationDetailInner({
                       </div>
 
                       {/* Headers */}
-                      <div>
-                        <h3 className="text-xs font-medium text-gray-400 mb-2">
-                          Headers
-                        </h3>
-                        <div className="bg-leo-elevated rounded p-3">
-                          <HeadersTable
-                            headers={
-                              networkHeaders?.requestHeaders ||
-                              operation.request.headers
-                            }
-                          />
-                        </div>
-                      </div>
+                      <HeadersTable
+                        headers={
+                          networkHeaders?.requestHeaders ||
+                          operation.request.headers
+                        }
+                      />
 
                       {/* Body */}
                       <div>
