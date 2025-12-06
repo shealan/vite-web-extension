@@ -18,10 +18,7 @@ interface CopyButtonProps {
 async function copyToClipboard(text: string): Promise<boolean> {
   // Method 1: For DevTools panels, use inspectedWindow.eval
   // This is more reliable than chrome.scripting for passing large strings
-  if (
-    typeof chrome !== "undefined" &&
-    chrome.devtools?.inspectedWindow?.eval
-  ) {
+  if (typeof chrome !== "undefined" && chrome.devtools?.inspectedWindow?.eval) {
     try {
       // Encode the text as base64 to avoid any escaping issues with special characters
       const base64Text = btoa(unescape(encodeURIComponent(text)));
@@ -91,7 +88,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 // Check icon SVG
-const CheckIcon = ({ size = 16 }: { size?: number }) => (
+const CheckIcon = ({ size = 15 }: { size?: number }) => (
   <svg
     className="text-green-400"
     width={size}
@@ -110,9 +107,9 @@ const CheckIcon = ({ size = 16 }: { size?: number }) => (
 );
 
 // Copy icon SVG
-const CopyIcon = ({ size = 16 }: { size?: number }) => (
+const CopyIcon = ({ size = 15 }: { size?: number }) => (
   <svg
-    className="text-gray-400 hover:text-gray-200"
+    className="text-gray-500 hover:text-gray-200"
     width={size}
     height={size}
     fill="none"

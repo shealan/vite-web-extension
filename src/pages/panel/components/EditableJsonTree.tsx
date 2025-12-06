@@ -13,6 +13,7 @@ import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { defaultKeymap } from "@codemirror/commands";
 import { tags } from "@lezer/highlight";
 import { CopyButton as SharedCopyButton } from "@src/shared/CopyButton";
+import { SaveButton as SharedSaveButton } from "@src/shared/SaveButton";
 
 // TextEditor props as expected by json-edit-react
 interface TextEditorProps {
@@ -183,8 +184,12 @@ interface EditableJsonTreeProps {
   noPadding?: boolean;
 }
 
-// CopyButton wrapper for JSON data - converts data to string for the shared component
-const CopyButton = React.memo(function CopyButton({ data }: { data: unknown }) {
+// Action buttons wrapper for JSON data - includes copy and save buttons
+const JsonActionButtons = React.memo(function JsonActionButtons({
+  data,
+}: {
+  data: unknown;
+}) {
   const text = useMemo(() => {
     try {
       return JSON.stringify(data, null, 2);
@@ -193,7 +198,12 @@ const CopyButton = React.memo(function CopyButton({ data }: { data: unknown }) {
     }
   }, [data]);
 
-  return <SharedCopyButton text={text} title="Copy JSON" />;
+  return (
+    <div className="flex items-center gap-0.5">
+      <SharedCopyButton text={text} title="Copy JSON" />
+      <SharedSaveButton content={text} filename="data.json" title="Save JSON" />
+    </div>
+  );
 });
 
 // Custom icons matching Leonardo.Ai design system (small, gray, subtle)
@@ -457,7 +467,7 @@ function EditableJsonTreeInner({
       <div className="relative">
         {showCopyButton && (
           <div className="absolute top-2 right-2 z-10 json-copy-button">
-            <CopyButton data={data} />
+            <JsonActionButtons data={data} />
           </div>
         )}
         <JsonEditor

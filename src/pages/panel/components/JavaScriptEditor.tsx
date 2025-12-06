@@ -8,6 +8,8 @@ import { autocompletion, CompletionContext, Completion } from "@codemirror/autoc
 import { defaultKeymap, indentWithTab } from "@codemirror/commands";
 import { tags } from "@lezer/highlight";
 import * as acorn from "acorn";
+import { CopyButton } from "@src/shared/CopyButton";
+import { SaveButton } from "@src/shared/SaveButton";
 
 interface JavaScriptEditorProps {
   code: string;
@@ -374,7 +376,16 @@ export function JavaScriptEditor({
 
 
   return (
-    <div className="js-editor bg-leo-elevated rounded overflow-hidden">
+    <div className="js-editor bg-leo-elevated rounded overflow-hidden relative">
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-0.5">
+        <CopyButton text={code} title="Copy JavaScript" />
+        <SaveButton
+          content={code}
+          filename="mock.js"
+          mimeType="text/javascript"
+          title="Save JavaScript"
+        />
+      </div>
       <div ref={editorRef} className="overflow-auto max-h-64" />
     </div>
   );
