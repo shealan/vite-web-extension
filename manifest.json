@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Leonardo.Ai DevTools",
-  "description": "A Chrome DevTools extension to assist developers building the Leonardo.Ai web platform.",
+  "description": "Making development of the Leonardo.Ai web platform easier, one feature at a time",
   "icons": {
     "128": "icon-128.png"
   },
