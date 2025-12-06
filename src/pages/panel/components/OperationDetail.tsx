@@ -147,7 +147,7 @@ function HeadersTable({
 }) {
   const [expanded, setExpanded] = useState(false);
   const entries = Object.entries(headers);
-  const defaultLimit = 6;
+  const defaultLimit = 4;
   const needsExpansion = entries.length > defaultLimit;
   const displayedEntries = expanded ? entries : entries.slice(0, defaultLimit);
 
@@ -1194,8 +1194,8 @@ return {
                           )}
                         >
                           {isDragOver
-                            ? "Drop mock result data file"
-                            : "Select mock result data file"}
+                            ? "Drop mock data file"
+                            : "Select mock data file"}
                         </span>
                         <span className="text-xs text-gray-600 mt-1">
                           .json or .js files
@@ -1593,75 +1593,7 @@ return {
                     <div className="flex flex-col flex-1 pb-3 space-y-4">
                       {/* No targets available */}
                       {proxyInstances.length === 0 ? (
-                        <div className="relative p-3 border rounded bg-gray-500/10 border-gray-500/30">
-                          <div className="absolute top-2 right-2 flex items-center gap-1">
-                            {/* Disabled eye icon (enable/disable toggle) */}
-                            <button
-                              disabled
-                              className="p-1 rounded transition-colors cursor-not-allowed opacity-50"
-                              title="Connect to enable"
-                            >
-                              <svg
-                                className="w-4 h-4 text-gray-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                />
-                              </svg>
-                            </button>
-                            {/* Disabled refresh icon */}
-                            <button
-                              disabled
-                              className="p-1 rounded transition-colors cursor-not-allowed opacity-50"
-                              title="Connect to enable"
-                            >
-                              <svg
-                                className="w-4 h-4 text-gray-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                />
-                              </svg>
-                            </button>
-                            {/* Disabled power icon (no target to connect) */}
-                            <button
-                              disabled
-                              className="p-1 rounded transition-colors cursor-not-allowed opacity-50"
-                              title="No proxy target available"
-                            >
-                              <svg
-                                className="w-4 h-4 text-gray-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9"
-                                />
-                              </svg>
-                            </button>
-                          </div>
+                        <div className="relative p-3 border rounded border-gray-500/30">
                           <div className="flex items-center gap-3 pr-20">
                             <svg
                               className="w-5 h-5 shrink-0 text-gray-500"
@@ -1678,10 +1610,11 @@ return {
                             </svg>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate text-gray-500">
-                                No proxy target available
+                                No proxy target detected
                               </p>
-                              <p className="text-xs mt-0.5 truncate text-gray-500">
-                                Proxy {operation.operationName} requests
+                              <p className="text-xs mt-0.5 truncate text-gray-600">
+                                Open a new tab/window with this extension
+                                enabled
                               </p>
                             </div>
                           </div>
