@@ -125,7 +125,7 @@ export function GraphQLHighlight({ query }: GraphQLHighlightProps) {
   return (
     <div
       ref={editorRef}
-      className="graphql-highlight leading-relaxed bg-leo-elevated p-3"
+      className="graphql-highlight leading-relaxed bg-leo-elevated p-3 pr-10"
     />
   );
 }

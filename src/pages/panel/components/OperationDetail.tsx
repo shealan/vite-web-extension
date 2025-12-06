@@ -874,9 +874,7 @@ function OperationDetailInner({
                   <div className="absolute top-2 right-2 z-10">
                     <CopyButton text={operation.query} title="Copy query" />
                   </div>
-                  <div className="pr-10">
-                    <GraphQLHighlight query={operation.query} />
-                  </div>
+                  <GraphQLHighlight query={operation.query} />
                 </div>
               )}
 
