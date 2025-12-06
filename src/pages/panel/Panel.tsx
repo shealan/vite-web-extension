@@ -377,6 +377,7 @@ export default function Panel() {
       (function() {
         const HIGHLIGHTER_ATTR = 'data-leo-chakra-highlight';
         const TOOLTIP_ID = 'leo-chakra-tooltip';
+        const COUNTER_ID = 'leo-chakra-counter';
 
         // Check if already applied
         if (document.body.getAttribute(HIGHLIGHTER_ATTR) === 'true') {
@@ -421,6 +422,30 @@ export default function Panel() {
         // Create text element
         const text = document.createElement('span');
         tooltip.appendChild(text);
+
+        // Create counter indicator at top center
+        const counter = document.createElement('div');
+        counter.id = COUNTER_ID;
+        counter.style.cssText = 'position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 999999; padding: 8px 16px; background: rgba(12, 12, 18, 0.95); border: 1px solid #a855f7; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; color: #e5e7eb; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);';
+
+        // Count chakra elements (excluding body)
+        const chakraElements = document.querySelectorAll('[class*="chakra-"]');
+        let count = 0;
+        chakraElements.forEach(el => {
+          if (el !== document.body) count++;
+        });
+
+        // Add purple dot
+        const counterDot = document.createElement('span');
+        counterDot.style.cssText = 'width: 8px; height: 8px; border-radius: 50%; background: #a855f7; flex-shrink: 0;';
+        counter.appendChild(counterDot);
+
+        // Add count text
+        const counterText = document.createElement('span');
+        counterText.textContent = count + ' Chakra Element' + (count !== 1 ? 's' : '');
+        counter.appendChild(counterText);
+
+        document.body.appendChild(counter);
 
         // Track current hovered element
         let currentEl = null;
@@ -562,6 +587,7 @@ export default function Panel() {
       (function() {
         const HIGHLIGHTER_ATTR = 'data-leo-chakra-highlight';
         const TOOLTIP_ID = 'leo-chakra-tooltip';
+        const COUNTER_ID = 'leo-chakra-counter';
 
         if (document.body.getAttribute(HIGHLIGHTER_ATTR) !== 'true') {
           return;
@@ -571,6 +597,12 @@ export default function Panel() {
         const tooltip = document.getElementById(TOOLTIP_ID);
         if (tooltip) {
           tooltip.remove();
+        }
+
+        // Remove counter
+        const counter = document.getElementById(COUNTER_ID);
+        if (counter) {
+          counter.remove();
         }
 
         // Remove event listeners
