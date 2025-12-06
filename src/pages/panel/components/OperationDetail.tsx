@@ -1018,7 +1018,16 @@ function OperationDetailInner({
                         : undefined
                     }
                   >
-                    {tab.label}
+                    <span className="flex items-center gap-1.5">
+                      {/* Show dot indicator when mock/proxy is active */}
+                      {tab.id === "mock" && isMockActive && (
+                        <span className="size-2 rounded-full bg-purple-400 mb-px" />
+                      )}
+                      {tab.id === "proxy" && isProxyActive && (
+                        <span className="size-2 rounded-full bg-orange-400 mb-px" />
+                      )}
+                      {tab.label}
+                    </span>
                   </button>
                 );
               })}

@@ -43,7 +43,7 @@ interface PersistedState {
 }
 
 const defaultSettings: Settings = {
-  autoExpandJson: false,
+  autoExpandJson: true,
   highlightChakra: false,
 };
 
