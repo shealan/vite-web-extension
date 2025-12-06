@@ -16,5 +16,5 @@ root.render(
 try {
   console.log('content script loaded');
 } catch (e) {
-  console.error(e);
+  console.log(e);
 }

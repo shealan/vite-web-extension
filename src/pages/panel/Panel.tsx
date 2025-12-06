@@ -184,7 +184,7 @@ async function loadPersistedState(): Promise<PersistedState | null> {
     const result = await chrome.storage.local.get(STORAGE_KEY);
     return result[STORAGE_KEY] || null;
   } catch (e) {
-    console.error("[Leonardo.Ai] Failed to load persisted state:", e);
+    console.log("[Leonardo.Ai] Failed to load persisted state:", e);
     return null;
   }
 }
@@ -196,7 +196,7 @@ function savePersistedState(state: PersistedState): void {
     return;
   }
   chrome.storage.local.set({ [STORAGE_KEY]: state }).catch((e) => {
-    console.error("[Leonardo.Ai] Failed to save persisted state:", e);
+    console.log("[Leonardo.Ai] Failed to save persisted state:", e);
   });
 }
 
@@ -211,7 +211,7 @@ async function clearPersistedProxyOperations(): Promise<void> {
       await chrome.storage.local.set({ [STORAGE_KEY]: persisted });
     }
   } catch (e) {
-    console.error(
+    console.log(
       "[Leonardo.Ai] Failed to clear persisted proxy operations:",
       e
     );
@@ -324,7 +324,7 @@ export default function Panel() {
           `[Leonardo.Ai] Re-applied proxy operation: ${operationName}`
         );
       } catch (err) {
-        console.error(
+        console.log(
           `[Leonardo.Ai] Failed to re-apply proxy operation ${operationName}:`,
           err
         );
@@ -813,7 +813,7 @@ export default function Panel() {
         };
       });
     } catch (error) {
-      console.error("[Leonardo.Ai] Failed to fetch data:", error);
+      console.log("[Leonardo.Ai] Failed to fetch data:", error);
       // Don't set isConnected to false on fetch error - might just be timing
     }
   }, []);
@@ -1086,7 +1086,7 @@ export default function Panel() {
         try {
           parsedMockData = JSON.parse(mockData);
         } catch (e) {
-          console.error("[Leonardo.Ai] Failed to parse mock data:", e);
+          console.log("[Leonardo.Ai] Failed to parse mock data:", e);
           return;
         }
       }
@@ -1106,7 +1106,7 @@ export default function Panel() {
             );
           })
           .catch((error) => {
-            console.error("[Leonardo.Ai] Failed to set mock data:", error);
+            console.log("[Leonardo.Ai] Failed to set mock data:", error);
           });
       } else {
         console.warn(
@@ -1151,7 +1151,7 @@ export default function Panel() {
             );
           })
           .catch((error) => {
-            console.error("[Leonardo.Ai] Failed to toggle mock:", error);
+            console.log("[Leonardo.Ai] Failed to toggle mock:", error);
           });
       }
     },
@@ -1220,7 +1220,7 @@ export default function Panel() {
             setProxyOperations((prev) => new Set([...prev, operationName]));
           })
           .catch((err) =>
-            console.error(`[Leonardo.Ai] Failed to add proxy operation:`, err)
+            console.log(`[Leonardo.Ai] Failed to add proxy operation:`, err)
           );
       } else {
         // Remove from proxy set
@@ -1238,7 +1238,7 @@ export default function Panel() {
             // Keep proxied data - it will be cleared on next request or when proxy is disconnected
           })
           .catch((err) =>
-            console.error(
+            console.log(
               `[Leonardo.Ai] Failed to remove proxy operation:`,
               err
             )

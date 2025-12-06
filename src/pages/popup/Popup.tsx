@@ -102,7 +102,7 @@ async function checkSessionCookie(): Promise<boolean> {
 
     return hasSessionCookie;
   } catch (error) {
-    console.error("[Leonardo.Ai] Failed to check session cookie:", error);
+    console.log("[Leonardo.Ai] Failed to check session cookie:", error);
     // If we can't check cookies, assume session is valid to avoid false positives
     return true;
   }

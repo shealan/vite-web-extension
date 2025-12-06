@@ -153,7 +153,7 @@ export const CopyButton = React.memo(function CopyButton({
         timeoutRef.current = null;
       }, 2000);
     } else {
-      console.error("Failed to copy to clipboard");
+      console.log("[Leonardo.Ai] Failed to copy to clipboard");
     }
   }, [text]);
 

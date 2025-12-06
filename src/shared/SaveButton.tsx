@@ -41,7 +41,7 @@ async function downloadFile(
 
     return true;
   } catch (error) {
-    console.error("Failed to download file:", error);
+    console.log("[Leonardo.Ai] Failed to download file:", error);
     return false;
   }
 }

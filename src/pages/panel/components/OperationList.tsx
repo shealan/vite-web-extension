@@ -197,9 +197,9 @@ export function OperationList({
                       )}
                   </div>
                   {operation.status === "loading" ? (
-                    <span className="text-purple-400">loading...</span>
+                    <span className="text-purple-400 hidden">loading...</span>
                   ) : operation.duration ? (
-                    <span>
+                    <span className="animate-fade-in duration-250">
                       {operation.responseSize && (
                         <>
                           {formatBytes(operation.responseSize)}
