@@ -423,10 +423,10 @@ export default function Panel() {
         const text = document.createElement('span');
         tooltip.appendChild(text);
 
-        // Create counter indicator at top center
+        // Create counter indicator at top center with slide-in animation
         const counter = document.createElement('div');
         counter.id = COUNTER_ID;
-        counter.style.cssText = 'position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 999999; padding: 8px 16px; background: rgba(12, 12, 18, 0.95); border: 1px solid #a855f7; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; color: #e5e7eb; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);';
+        counter.style.cssText = 'position: fixed; top: 12px; left: 50%; transform: translateX(-50%) translateY(-100px); z-index: 999999; padding: 8px 16px; background: rgba(12, 12, 18, 0.95); border: 1px solid #a855f7; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; color: #e5e7eb; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; opacity: 0;';
 
         // Count chakra elements (excluding body)
         const chakraElements = document.querySelectorAll('[class*="chakra-"]');
@@ -442,10 +442,18 @@ export default function Panel() {
 
         // Add count text
         const counterText = document.createElement('span');
-        counterText.textContent = count + ' Chakra Element' + (count !== 1 ? 's' : '');
+        counterText.textContent = count + ' Chakra UI Element' + (count !== 1 ? 's' : '');
         counter.appendChild(counterText);
 
         document.body.appendChild(counter);
+
+        // Trigger slide-in animation after a brief delay
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            counter.style.transform = 'translateX(-50%) translateY(0)';
+            counter.style.opacity = '1';
+          });
+        });
 
         // Track current hovered element
         let currentEl = null;
@@ -593,16 +601,20 @@ export default function Panel() {
           return;
         }
 
-        // Remove tooltip
+        // Remove tooltip immediately
         const tooltip = document.getElementById(TOOLTIP_ID);
         if (tooltip) {
           tooltip.remove();
         }
 
-        // Remove counter
+        // Animate counter out, then remove
         const counter = document.getElementById(COUNTER_ID);
         if (counter) {
-          counter.remove();
+          counter.style.transform = 'translateX(-50%) translateY(-100px)';
+          counter.style.opacity = '0';
+          setTimeout(() => {
+            counter.remove();
+          }, 300);
         }
 
         // Remove event listeners
